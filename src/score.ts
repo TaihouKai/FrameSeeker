@@ -185,7 +185,9 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   info.subject_size = top && feet ? Math.abs(feet.v - top.v) : 0;
   // too small to be anyone
   if (info.subject_size < 0.015) return reject('focus too small');
-  terms.subject_size = tri(info.subject_size, ...SUBJECT_SIZE[ctx.intent]);
+  // with the payoff far from the focus both cannot be big: judge the person's size as in a wide shot
+  const far = ctx.payoff && dist(ctx.focus.head, ctx.payoff.points.reduce((a, b) => add(a, mul(b, 1 / ctx.payoff!.points.length)), [0, 0, 0] as V3)) > 30;
+  terms.subject_size = tri(info.subject_size, ...SUBJECT_SIZE[far ? 'scale' : ctx.intent]);
   // the face carries the moment: front to three-quarter view (the way the face points, so a look back counts)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
