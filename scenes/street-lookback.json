@@ -1,0 +1,11 @@
+{
+ "version": 1,
+ "place": { "kind": "street", "description": "quiet residential street at sunset", "width": 8 },
+ "time": { "of_day": "sunset", "weather": "clear" },
+ "actors": [
+  { "id": "p", "height": 1.62, "pose": "look_back", "place": { "at": [0, 0] }, "prompt": { "look": ["adult woman", "long hair"], "outfit": ["coat"], "expression": ["surprised"] } }
+ ],
+ "structures": [],
+ "effects": [],
+ "moment": { "focus": "p", "intent": "emotion" }
+}

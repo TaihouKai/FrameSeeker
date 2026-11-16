@@ -1,0 +1,12 @@
+{
+ "version": 1,
+ "place": { "kind": "room", "description": "school classroom after class, evening light through the windows" },
+ "time": { "of_day": "afternoon", "weather": "clear" },
+ "actors": [
+  { "id": "a", "height": 1.65, "pose": "talk", "facing": "b", "place": { "at": [0, 0] }, "prompt": { "look": ["short black hair"], "outfit": ["school uniform"], "expression": ["smile"] } },
+  { "id": "b", "height": 1.58, "pose": "arms_crossed", "facing": "a", "place": { "from": "a", "distance": 1.4, "bearing": "front" }, "prompt": { "look": ["ponytail"], "outfit": ["school uniform"], "expression": ["doubtful"] } }
+ ],
+ "structures": [],
+ "effects": [],
+ "moment": { "focus": "a", "intent": "emotion", "must_show": ["b"] }
+}

@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "place": { "kind": "rooftop", "description": "rooftop of an office building at night, city lights below" },
+ "time": { "of_day": "night", "weather": "clear" },
+ "actors": [
+  { "id": "x", "height": 1.78, "pose": "punch", "aim": "y.chest", "place": { "at": [0, 0] }, "prompt": { "look": ["adult man", "short hair"], "outfit": ["leather jacket"], "expression": ["angry"] } },
+  { "id": "y", "height": 1.7, "pose": "dodge_side_step", "facing": "x", "place": { "from": "x", "distance": 1.3, "bearing": "front" }, "prompt": { "look": ["adult woman", "long hair"], "outfit": ["coat"], "expression": ["determined"] } }
+ ],
+ "structures": [],
+ "effects": [
+  { "id": "strike", "kind": "slash", "from": "x.right_hand", "to": "y.chest", "grazes": { "actor": "y", "part": "side", "clearance": 0.1 }, "prompt": ["motion lines", "punch"] }
+ ],
+ "moment": { "focus": "y", "action_line": "strike", "source": "x", "intent": "action", "must_show": ["x"] }
+}

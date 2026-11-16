@@ -1,0 +1,16 @@
+{
+ "version": 1,
+ "place": { "kind": "street", "description": "city street of low office buildings under a steel gantry", "width": 22 },
+ "time": { "of_day": "afternoon", "weather": "cloudy" },
+ "actors": [
+  { "id": "figure", "height": 1.6, "pose": "point", "place": { "on": "gantry", "offset": -5 },
+    "prompt": { "look": [], "outfit": [], "expression": [] } }
+ ],
+ "structures": [
+  { "id": "gantry", "kind": "truss", "size": { "width": 22, "height": 7 }, "place": { "at": [0, 0] }, "prompt": ["steel truss", "gantry"] }
+ ],
+ "effects": [
+  { "id": "bolt", "kind": "lightning", "from": "figure.right_hand", "to": { "toward": [0.55, 0.75, 0.6], "length": 120 }, "prompt": ["lightning", "electricity", "pink lightning"] }
+ ],
+ "moment": { "focus": "figure", "action_line": "bolt", "source": "figure", "intent": "scale" }
+}
