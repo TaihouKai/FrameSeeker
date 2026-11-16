@@ -68,8 +68,6 @@ writeFileSync(join(out, 'winner.json'), JSON.stringify(winner.scene, null, 1));
 console.log(`\nwinner: ${winner.name} (${winner.total})   ${((Date.now() - t0) / 1000).toFixed(0)} s, $${chat.spent().toFixed(4)}`);
 
 function describe(op: Op): string {
-  if (op.op === 'add_structure') return `add ${op.structure?.kind} "${op.structure?.id}" ${JSON.stringify(op.structure?.place)} [${op.purpose}] ${op.why}`;
-  if (op.op === 'place_actor') return `move ${op.actor} -> ${JSON.stringify(op.place)} [${op.purpose}] ${op.why}`;
-  return `move structure ${op.structure} -> ${JSON.stringify(op.place ?? op.facing)} [${op.purpose}] ${op.why}`;
+  return `${op.op} ${op.structure?.kind} "${op.structure?.id}" ${JSON.stringify(op.structure?.place)} [${op.purpose}] ${op.why}`;
 }
 function png(img: { width: number; height: number; channels: 1 | 3; pixels: Uint8Array }) { return encodePng(img.width, img.height, img.pixels, img.channels); }

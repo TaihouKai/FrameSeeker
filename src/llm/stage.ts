@@ -4,35 +4,29 @@
 import { solve } from '../solve.ts';
 import { clear } from '../geom.ts';
 import { lerp } from '../vec.ts';
-import type { Placement, Scene, Structure } from '../scene.ts';
+import type { Scene, Structure } from '../scene.ts';
 import { jsonOf, type Chat } from './chat.ts';
 import { STRUCTURE_KINDS, vocabulary } from './vocab.ts';
 import type { Extracted } from './extract.ts';
 
-export const PURPOSES = ['foreground_frame', 'line_of_fire', 'elevation', 'backdrop', 'separation'] as const;
+export const PURPOSES = ['foreground_frame', 'backdrop'] as const;
 export type Purpose = typeof PURPOSES[number];
-export type Op =
-  | { op: 'add_structure'; structure: Structure; purpose: Purpose; why: string }
-  | { op: 'place_actor'; actor: string; place: Placement; purpose: Purpose; why: string }
-  | { op: 'place_structure'; structure: string; place?: Placement; facing?: string; purpose: Purpose; why: string };
+/** The only operation: the extracted scene is absolute, staging adds to it. */
+export type Op = { op: 'add_structure'; structure: Structure; purpose: Purpose; why: string };
 export interface Plan { name: string; ops: Op[] }
 
 const SHAPE = `{"plans":[{"name":"","ops":[
-{"op":"add_structure","structure":{"id":"","kind":"","size":{},"place":{...},"facing":null,"prompt":[]},"purpose":"","why":""},
-{"op":"place_actor","actor":"","place":{...},"purpose":"","why":""},
-{"op":"place_structure","structure":"","place":{...},"facing":null,"purpose":"","why":""}]}]}`;
+{"op":"add_structure","structure":{"id":"","kind":"","size":{},"place":{...},"facing":null,"prompt":[]},"purpose":"","why":""}]}]}`;
 
 export const STAGE_PROMPT = `You are the director and layout artist for ONE moment of a story. A program will try thousands of camera positions on this stage and keep the best by composition rules: a low camera looking up for size and power; the action line running diagonally across the frame, never straight at or away from the lens; near objects at the frame's edges framing the shot; the focus readable, its face visible; the payoff in frame; open sky for scale. Propose changes to the STAGE that give the camera better shots of exactly this moment. Answer with one JSON object in the SHAPE below and nothing else.
 
-You may:
-- add_structure: one set piece this place plausibly has at this time and in this world, placed RELATIVE to someone or something in the scene ("from" + distance + bearing, "behind" + "seen_from", "on_line") — never by absolute coordinates; read "layout" for where everything is (a street: a footbridge or gantry across the road, a parked car, a bus shelter, a pillar or signpost, a low wall; a rooftop: a water tank, a railing, an antenna mast, a stairwell hut; a room: a shelf, a pillar; a platform: a canopy pillar, a bench). kind from STRUCTURE KINDS, a new short ASCII id, real-world size.
-- place_actor: a new place for an actor whose "fixed" is false — only within what the text allows (never somewhere the text contradicts, never making the moment physically different).
-- place_structure: a new place or facing for a structure whose "fixed" is false.
-Every operation names its purpose — foreground_frame (near the camera side of the action, to frame it), line_of_fire (so the action line reaches or clears what it must), elevation (someone higher or lower for a stronger angle), backdrop (something behind the focus that shows scale or place), separation (people far enough apart to read) — and why, in one sentence about this shot.
+THE SCENE JSON IS ABSOLUTE: every person, structure, effect, place, pose and the moment stay exactly as they are; nothing is moved, removed or changed. You may only ADD set pieces:
+- add_structure: one set piece this place plausibly has at this time and in this world, placed RELATIVE to someone or something in the scene ("from" + distance + bearing, "behind" + "seen_from", "on_line") — never by absolute coordinates; read "layout" for where everything is. A street: a footbridge or gantry across the road, a parked car, a bus shelter, a pillar or signpost, a low wall; a rooftop: a water tank, a railing, an antenna mast, a stairwell hut; a room: a shelf, a pillar; a platform: a canopy pillar, a bench. kind from STRUCTURE KINDS, a new short ASCII id, real-world size.
+Every set piece names its purpose — foreground_frame (near the action, for a camera to shoot past), backdrop (behind the focus, showing scale or place) — and why, in one sentence about this shot.
 
-Never: change what the text states (who does what, the poses, anything fixed, the time, the weather); add people, animals or anything that moves; change anyone's looks, clothes or powers; add effects; put anything on the action line, between the focus and the action, or inside another thing. Only what the shot needs: 1 to 3 operations per plan, each serving this moment, not decoration. When the stage is already right, an empty plan is a good answer.
+Never: add people, animals or anything that moves; add effects; put anything on the action line, between the people, or inside another thing; add what the text rules out. Only what the shot needs: 1 to 3 operations per plan, each serving this moment, not decoration. When the stage is already right, an empty plan is a good answer.
 
-"layout" says where everything stands now (metres; x across, z along; y up) and where each action line runs. "bare_stage" tells you what the camera search found without your changes: its best score, the weakest rules (each with what staging can do about it), and the solver's notes (a note may say the action cannot reach what the text says it hits from where people stand: fix that with place_actor or elevation only when "fixed" allows). Aim your changes at the weakest rules; a change that does not raise the score is removed by the program, so do not decorate.
+"layout" says where everything stands now (metres; x across, z along; y up) and where each action line runs. "bare_stage" tells you what the camera search found without your changes: its best score, the weakest rules (each with what staging can do about it), and the solver's notes. Aim your changes at the weakest rules; a change that does not raise the score is removed by the program, so do not decorate.
 
 Give 3 plans with different ideas.
 
@@ -92,22 +86,18 @@ export function applyPlan(base: Extracted, plan: Plan): Applied {
     const why = check(op);
     if (why) { refused.push({ op, why }); continue; }
     const next = structuredClone(scene) as Extracted;
-    if (op.op === 'add_structure') next.structures.push({ ...op.structure, prompt: op.structure.prompt ?? [] });
-    else if (op.op === 'place_actor') next.actors.find((a) => a.id === op.actor)!.place = op.place;
-    else { const s = next.structures.find((x) => x.id === op.structure)!; if (op.place) s.place = op.place; if (op.facing) s.facing = op.facing; }
+    next.structures.push({ ...op.structure, prompt: op.structure.prompt ?? [] });
     try {
       const solved = solve(stripNulls(next));
       // nothing staged may stand in the action's way
-      if (op.op === 'add_structure') {
+      {
         const mine = { groundY: -1e9, prims: solved.structures.get(op.structure.id)!.prims };
         for (const l of solved.lines.values()) if (!clear(mine, l.a, lerp(l.a, l.b, 0.97))) throw new Error('stands on the action line');
         const focus = solved.actors.get(next.moment.focus)!;
         for (const a of solved.actors.values()) if (a.id !== focus.id && !clear(mine, focus.head, a.head)) throw new Error('stands between the people');
       }
       scene = next;
-      if (op.op === 'add_structure') origin[op.structure.id] = 'staged';
-      if (op.op === 'place_actor') origin[op.actor] = 'staged';
-      if (op.op === 'place_structure') origin[op.structure] = 'staged';
+      origin[op.structure.id] = 'staged';
       accepted.push(op);
     } catch (e) { refused.push({ op, why: (e as Error).message }); }
   }
@@ -116,26 +106,14 @@ export function applyPlan(base: Extracted, plan: Plan): Applied {
   function check(op: Op): string | null {
     if (!PURPOSES.includes(op.purpose)) return `purpose "${op.purpose}" is not one of ${PURPOSES.join(', ')}`;
     if (!op.why || !String(op.why).trim()) return 'no reason given';
-    if (op.op === 'add_structure') {
-      const s = op.structure;
-      if (!s || !s.id || ids().has(s.id)) return `structure id "${s?.id}" missing or taken`;
-      if (!(STRUCTURE_KINDS as readonly string[]).includes(s.kind)) return `kind "${s.kind}" unknown`;
-      if (INDOOR.has(scene.place.kind) && NOT_INDOORS.has(s.kind)) return `a ${s.kind} does not fit in a ${scene.place.kind}`;
-      if ((s.size?.floors ?? 0) > 80 || (s.size?.height ?? 0) > 40) return 'too big for a set piece';
-      if (!s.place || 'at' in s.place) return 'a set piece is placed relative to something in the scene, not by coordinates';
-      return null;
-    }
-    if (op.op === 'place_actor') {
-      if (!scene.actors.some((a) => a.id === op.actor)) return `no actor "${op.actor}"`;
-      if (base.fixed[op.actor] !== false) return `the text fixes where "${op.actor}" is`;
-      return null;
-    }
-    if (op.op === 'place_structure') {
-      if (!scene.structures.some((s) => s.id === op.structure)) return `no structure "${op.structure}"`;
-      if (base.fixed[op.structure] !== false) return `the text fixes where "${op.structure}" is`;
-      return null;
-    }
-    return `unknown operation "${(op as { op: string }).op}"`;
+    if (op.op !== 'add_structure') return `unknown operation "${(op as { op: string }).op}": the scene is absolute, only add_structure`;
+    const s = op.structure;
+    if (!s || !s.id || ids().has(s.id)) return `structure id "${s?.id}" missing or taken`;
+    if (!(STRUCTURE_KINDS as readonly string[]).includes(s.kind)) return `kind "${s.kind}" unknown`;
+    if (INDOOR.has(scene.place.kind) && NOT_INDOORS.has(s.kind)) return `a ${s.kind} does not fit in a ${scene.place.kind}`;
+    if ((s.size?.floors ?? 0) > 80 || (s.size?.height ?? 0) > 40) return 'too big for a set piece';
+    if (!s.place || 'at' in s.place) return 'a set piece is placed relative to something in the scene, not by coordinates';
+    return null;
   }
 }
 
