@@ -6,7 +6,7 @@ import type { Scene } from '../scene/index.ts';
 import type { ShotIntent } from './types.ts';
 
 export type { Convey, ConveyKind, ShotIntent } from './types.ts';
-export { preferences, DEVICES, label, type Device } from './devices.ts';
+export { preferences, DEVICES, DEFAULT_WEIGHTS, label, type Device, type IntentWeights } from './devices.ts';
 export { extractIntent, checkIntent, INTENT_PROMPT } from './extract.ts';
 
 /** The ids the intent needs in frame: its subject and what each thing to convey involves. */

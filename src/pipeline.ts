@@ -3,7 +3,7 @@
 import { buildScenes, realize, type Built, type Chat, type Scene, type World3D } from './scene/index.ts';
 import { maps, rate, shoot, SIZE, type SearchOpts, type Shot, type ShotMaps } from './camera/index.ts';
 import { GeneratorUnavailable, type Generator } from './generate/index.ts';
-import { extractIntent, preferences, applyIntent, type ShotIntent } from './intent/index.ts';
+import { extractIntent, preferences, applyIntent, type IntentWeights, type ShotIntent } from './intent/index.ts';
 import type { Image } from './shared/image.ts';
 
 /** meta: what the renderer reported (its prompt, its checks) */
@@ -18,6 +18,8 @@ export interface RunOpts {
   generator?: Generator;
   /** what the shot must make the viewer understand: its devices become the camera search's preferences */
   intent?: ShotIntent;
+  /** how much each kind of intent weighs (frameseeker.config.json) */
+  intentWeights?: Partial<IntentWeights>;
 }
 
 /** From story text (needs an LLM for phases 1–2). */
@@ -33,7 +35,7 @@ export async function runText(text: string, opts: RunOpts & { chat: Chat; focus?
 export async function runScene(scene: Scene, opts: RunOpts = {}): Promise<RunResult> {
   if (opts.intent) scene = applyIntent(scene, opts.intent);
   const world = realize(scene);
-  const { shots } = shoot(world, { k: opts.k ?? 3, ...opts.search, ...(opts.intent ? { prefer: preferences(opts.intent) } : {}) });
+  const { shots } = shoot(world, { k: opts.k ?? 3, ...opts.search, ...(opts.intent ? { prefer: preferences(opts.intent, opts.intentWeights) } : {}) });
   const results: ShotResult[] = [];
   for (const shot of shots) {
     const m = maps(world, shot.cam);

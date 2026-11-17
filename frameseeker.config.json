@@ -1,0 +1,7 @@
+{
+  "//": "Tunable weights. Each intent kind weighs this much against the whole composition score (1); the first thing to convey is weighed 'first' times more. First choices, not measured: change them as testing shows.",
+  "intent": {
+    "kinds": { "face": 1, "sees": 1, "power": 1, "vulnerable": 1, "alone": 1, "together": 1, "scale": 1 },
+    "first": 1.5
+  }
+}

@@ -82,13 +82,26 @@ export const DEVICES: Record<ConveyKind, string[]> = {
 };
 
 /**
- * The intent as preferences for the camera search: one per thing to convey, met by its best device, each weighted
- * as much as the whole composition score (the first, most important, a half more).
+ * How much each thing to convey weighs against the whole composition score (which counts 1). A first choice, not
+ * measured: tune it in frameseeker.config.json ("intent"), as testing shows.
  */
-export function preferences(intent: ShotIntent): Preference[] {
+export interface IntentWeights {
+  /** each kind's weight */
+  kinds: Record<ConveyKind, number>;
+  /** the first (most important) thing to convey is weighed this many times more */
+  first: number;
+}
+export const DEFAULT_WEIGHTS: IntentWeights = {
+  kinds: { face: 1, sees: 1, power: 1, vulnerable: 1, alone: 1, together: 1, scale: 1 },
+  first: 1.5,
+};
+
+/** The intent as preferences for the camera search: one per thing to convey, met by its best device. */
+export function preferences(intent: ShotIntent, weights: Partial<IntentWeights> = {}): Preference[] {
+  const kinds = { ...DEFAULT_WEIGHTS.kinds, ...weights.kinds }, first = weights.first ?? DEFAULT_WEIGHTS.first;
   return intent.convey.map((c, i) => {
     const ds = devicesFor(c);
-    return { name: label(c), weight: i === 0 ? 1.5 : 1, score: (v: View) => Math.max(...ds.map((d) => d.score(v))) };
+    return { name: label(c), weight: kinds[c.what] * (i === 0 ? first : 1), score: (v: View) => Math.max(...ds.map((d) => d.score(v))) };
   });
 }
 

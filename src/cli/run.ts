@@ -1,4 +1,4 @@
-// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator <name>] [--out dir]
+// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--generator <name>] [--out dir]
 // The whole pipeline. A .txt goes through all six phases (phases 1–2 call the LLM: Venice, the local test key);
 // a .json scene starts at phase 3. Writes per shot: preview, depth, lineart, pose, a mask per region, the colour hint (effects); and report.json.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -7,10 +7,13 @@ import { runScene, runText } from '../pipeline.ts';
 import { veniceChat, type Scene } from '../scene/index.ts';
 import { GENERATORS } from '../generate/index.ts';
 import { toPng } from '../shared/image.ts';
+import type { ShotIntent } from '../intent/index.ts';
+import { loadConfig } from './config.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
-const focus = opt('focus'), peopleFile = opt('people'), k = Number(opt('k') ?? 3), genName = opt('generator'), outOpt = opt('out');
+const focus = opt('focus'), peopleFile = opt('people'), k = Number(opt('k') ?? 3), genName = opt('generator'), outOpt = opt('out'), intentFile = opt('intent');
+const intent = intentFile ? JSON.parse(readFileSync(intentFile, 'utf8')) as ShotIntent : undefined, intentWeights = loadConfig().intent;
 const file = args[0];
 if (!file) { console.error('usage: npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator <name>] [--out dir]'); process.exit(2); }
 const generator = genName ? GENERATORS[genName] : undefined;
@@ -22,8 +25,8 @@ const t0 = Date.now();
 const isText = extname(file) === '.txt';
 const chat = isText ? veniceChat() : null;
 const r = isText
-  ? await runText(readFileSync(file, 'utf8'), { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator })
-  : await runScene(JSON.parse(readFileSync(file, 'utf8')) as Scene, { k, generator });
+  ? await runText(readFileSync(file, 'utf8'), { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator, intent, intentWeights })
+  : await runScene(JSON.parse(readFileSync(file, 'utf8')) as Scene, { k, generator, intent, intentWeights });
 
 if (r.built) writeFileSync(join(out, 'scene.json'), JSON.stringify(r.built.winner.scene, null, 1));
 r.shots.forEach((s, i) => {
