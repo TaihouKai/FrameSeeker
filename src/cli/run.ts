@@ -1,6 +1,6 @@
 // npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator comfy|novelai] [--out dir]
 // The whole pipeline. A .txt goes through all six phases (phases 1–2 call the LLM: Venice, the local test key);
-// a .json scene starts at phase 3. Writes shot-N-preview.png, shot-N-depth.png, shot-N-prompt.json and report.json.
+// a .json scene starts at phase 3. Writes per shot: preview, depth, lineart, pose, a mask per person, the prompt; and report.json.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { runScene, runText } from '../pipeline.ts';
@@ -30,6 +30,9 @@ r.shots.forEach((s, i) => {
   const n = `shot-${i + 1}`;
   writeFileSync(join(out, `${n}-preview.png`), toPng(s.maps.preview));
   writeFileSync(join(out, `${n}-depth.png`), toPng(s.maps.depth));
+  writeFileSync(join(out, `${n}-lineart.png`), toPng(s.maps.lineart));
+  writeFileSync(join(out, `${n}-pose.png`), toPng(s.maps.pose));
+  for (const g of s.maps.regions) writeFileSync(join(out, `${n}-mask-${g.id}.png`), toPng(g.mask));
   writeFileSync(join(out, `${n}-prompt.json`), JSON.stringify(s.prompt, null, 1));
   if (s.image) writeFileSync(join(out, `${n}.png`), toPng(s.image));
 });
@@ -37,7 +40,9 @@ const report = {
   input: file, seconds: (Date.now() - t0) / 1000, usd: chat ? (chat as unknown as { spent: () => number }).spent() : 0,
   staging: r.built ? { winner: r.built.winner.name, plans: r.built.stagings.map((s) => ({ name: s.name, total: +s.rating.total.toFixed(3), accepted: s.accepted.length, dropped: s.dropped.length, refused: s.refused.length })) } : null,
   notes: r.world.solved.notes,
-  shots: r.shots.map((s, i) => ({ name: `shot-${i + 1}`, total: +s.shot.total.toFixed(3), camera: s.shot.cam, info: s.shot.info, generated: !!s.image, note: s.note })),
+  shots: r.shots.map((s, i) => ({ name: `shot-${i + 1}`, total: +s.shot.total.toFixed(3), camera: s.shot.cam, info: s.shot.info,
+    regions: s.maps.regions.map((g) => ({ id: g.id, kind: g.kind, area: +g.area.toFixed(4), centre: g.centre.map((v) => +v.toFixed(3)), box: g.box.map((v) => +v.toFixed(3)) })),
+    generated: !!s.image, note: s.note })),
 };
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 1));
 console.log(`${file}: ${r.shots.length} shot(s) in ${report.seconds.toFixed(1)} s -> ${out}${r.built ? `  (staging: ${r.built.winner.name}, $${report.usd.toFixed(4)})` : ''}`);

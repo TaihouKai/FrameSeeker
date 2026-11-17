@@ -3,7 +3,7 @@
 From a moment in a story to a cinematic shot: an LLM writes the moment as a scene (who stands where, what hits
 what), code builds a gray-box 3D stage of it, a camera search scores thousands of viewpoints with **deterministic
 composition rules** from the film and photography literature (no AI judge), and the best shots are rendered as
-structure maps (depth, later line art and pose) to steer an image model through ControlNet.
+structure maps (depth, line art, pose) to steer an image model through ControlNet.
 
 Why: image models draw well but cannot be told *where the camera is*. A striking frame is mostly composition:
 camera height, angle, lens, what frames the subject. That part is geometry, so it is solved as geometry.
@@ -62,8 +62,8 @@ npm run frameseeker -- stories/rooftop-chase.txt     # phases 1–6 (needs VENIC
 npm run shot -- scenes/beam-clash.json               # camera search with every score term
 ```
 
-Each shot comes out as a gray-box preview, a depth map and a prompt.
+Each shot comes out as a gray-box preview, depth, line art, pose, region masks and a prompt.
 
 ## Status
 
-Phases 1–5 work end to end. Next: line art, pose and region masks; then a ComfyUI ControlNet workflow for phase 6.
+Phases 1–5 work end to end: each shot gives a gray-box preview and the ControlNet maps (depth, line art of the setting and the effects, an OpenPose skeleton per person) plus a mask per person and per effect for regional prompts. Next: the ComfyUI ControlNet workflow for phase 6.

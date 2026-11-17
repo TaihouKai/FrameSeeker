@@ -5,7 +5,8 @@ import type { World3D, Rating } from '../scene/index.ts';
 import type { Image } from '../shared/image.ts';
 import { context, evaluate, TERMS, type Evaluation } from './score.ts';
 import { search, type SearchOpts } from './search.ts';
-import { depthMap, preview } from './render.ts';
+import { preview } from './render.ts';
+import { depthOf, gbuffer, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
 import { frame, pitch, type Cam } from './camera.ts';
 
 export type { Cam, Aspect } from './camera.ts';
@@ -22,10 +23,11 @@ export interface Shot {
 }
 
 /**
- * The 2D maps of a shot. `preview` is the gray box for people to look at; the rest are ControlNet inputs.
- * lineart and pose are milestone M2 (not yet rendered).
+ * The 2D maps of a shot. `preview` is the gray box for people to look at; depth, lineart and pose are ControlNet
+ * inputs at the output size; regions are each person's visible mask and position (for regional prompts).
  */
-export interface ShotMaps { preview: Image; depth: Image; lineart?: Image; pose?: Image }
+export interface ShotMaps { preview: Image; depth: Image; lineart: Image; pose: Image; regions: Region[] }
+export type { Region } from './maps.ts';
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */
 export function shoot(w: World3D, opts: SearchOpts = {}): { shots: Shot[]; sampled: number; accepted: number; rejects: Record<string, number> } {
@@ -44,9 +46,17 @@ export function rate(w: World3D, opts: SearchOpts = { seed: 1, k: 1 }): Rating {
   return best ? { total: best.total, terms: Object.fromEntries(TERMS.filter((t) => best.terms[t] !== undefined).map((t) => [t, best.terms[t]!])) } : { total: 0, terms: {} };
 }
 
-/** Phase 5: the shot's 2D maps. */
-export function maps(w: World3D, cam: Cam, scale = 0.5): ShotMaps {
-  return { preview: preview(w.solved, w.world, cam, scale), depth: depthMap(w.world, cam, scale) };
+/** Phase 5: the shot's 2D maps (ControlNet maps at `scale` of the output size, the preview at `previewScale`). */
+export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?: number } = {}): ShotMaps {
+  const g = gbuffer(w.world, cam, opts.scale ?? 1);
+  const regions = regionsOf(g, w.solved);
+  return {
+    preview: preview(w.solved, w.world, cam, opts.previewScale ?? 0.5),
+    depth: depthOf(g),
+    lineart: lineartOf(g, w.world, regions),
+    pose: openposeOf(w.solved, w.world, cam, g.width, g.height),
+    regions,
+  };
 }
 
 function toShot(cam: Cam, ev: Evaluation): Shot {

@@ -1,4 +1,4 @@
-// Stage 4 (part): the gray-box preview for people, and the depth map (CPU ray casting).
+// The gray-box preview for people to look at (CPU ray casting). The ControlNet maps are in maps.ts.
 import { add, dist, dot, lerp, mul, norm, sub, type V3 } from '../shared/vec.ts';
 import { cast, inside, raySphere, type World } from '../shared/geom.ts';
 import { frame, project, ray, SIZE, type Cam } from './camera.ts';
@@ -84,23 +84,6 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5): Image {
     for (let x = 0; x < W; x++) tint(px, W, x, Math.round(k * H), [255, 255, 255], 0.18);
   }
   return { width: W, height: H, channels: 3, pixels: px };
-}
-
-/** Depth for ControlNet: near white, far black, sky black (inverse depth, normalized over the visible range). */
-export function depthMap(w: World, cam: Cam, scale = 1): Image {
-  const f = frame(cam);
-  const W = Math.round(SIZE[cam.aspect].w * scale), H = Math.round(SIZE[cam.aspect].h * scale);
-  const inv = new Float32Array(W * H);
-  let lo = Infinity, hi = 0;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const hit = cast(w, cam.pos, ray(f, (x + 0.5) / W, (y + 0.5) / H), 2000);
-    const v = hit ? 1 / hit.t : 0;
-    inv[y * W + x] = v;
-    if (hit) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  }
-  const px = new Uint8Array(W * H);
-  for (let i = 0; i < inv.length; i++) px[i] = inv[i] === 0 ? 0 : Math.round(20 + 235 * (inv[i] - lo) / Math.max(1e-9, hi - lo));
-  return { width: W, height: H, channels: 1, pixels: px };
 }
 
 function blend(c: [number, number, number], d: [number, number, number], a: number): [number, number, number] {

@@ -39,6 +39,8 @@ const report = {
     const m = maps(w, c.cam);
     writeFileSync(join(dir, `${name}.png`), toPng(m.preview));
     writeFileSync(join(dir, `${name}-depth.png`), toPng(m.depth));
+    writeFileSync(join(dir, `${name}-lineart.png`), toPng(m.lineart));
+    writeFileSync(join(dir, `${name}-pose.png`), toPng(m.pose));
     return { name, total: round(c.total), ok: c.ok, reject: c.reject, terms: mapRound(c.terms), info: mapRound(c.info),
       camera: { ...c.cam, pos: c.cam.pos.map(round), target: c.cam.target.map(round), roll: round(c.cam.roll), height: round(c.cam.pos[1]), pitch_deg: round(c.info.pitch_deg ?? NaN) } };
   }),
