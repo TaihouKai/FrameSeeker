@@ -19,15 +19,15 @@ camera height, angle, lens, what frames the subject. That part is geometry, so i
 ### Does it pick the shots a director picks?
 
 Reference frames from anime episodes are rebuilt as gray-box scenes with the camera that shot them; the question
-is where the director's camera ranks among the search's random valid cameras. On four **held-out** episodes, each
-scored once with the scorer frozen beforehand:
+is where the director's camera ranks among the search's random valid cameras. On six **held-out** episodes, each
+scored once with the scorer frozen beforehand (four with earlier versions, two with the current one):
 
-| | Director's camera in the top 5% |
-|---|---|
-| **FrameSeeker's scorer** | **36 / 59 shots (61%)** |
-| Baseline: Liu et al. 2010's composition score (the published method), same hard constraints, same cameras | 2 / 59 (3%) |
-| Baseline: rule of thirds alone, same hard constraints, same cameras | 1 / 59 (2%) |
-| Chance | 5% |
+| Director's camera in the top 5% | All held-out (6 episodes) | Current version (2 episodes) |
+|---|---|---|
+| **FrameSeeker's scorer** | **49 / 89 shots (55%)** | **13 / 30 (43%)** |
+| Baseline: Liu et al. 2010's composition score (the published method), same hard constraints, same cameras | 6 / 89 (7%) | 4 / 30 (13%) |
+| Baseline: rule of thirds alone, same hard constraints, same cameras | 2 / 89 (2%) | 1 / 30 (3%) |
+| Chance | 5% | 5% |
 
 Details, the tuning episodes, and the caveats are in [Evaluation](#evaluation).
 
@@ -252,7 +252,10 @@ percentile of 50%.
 A Certain Scientific Railgun S ep 24 (J.C.Staff). Each held-out episode below was annotated first, then scored
 **once** with the scorer frozen at the named commit, and only then joined the tuning set. After Log Horizon the
 action shot-scale prior was changed (the episode showed action shots are wider); Mahouka and GATE were scored with
-that change already frozen.
+that change already frozen. Between GATE and the last two episodes the scorer was changed using all six earlier
+episodes (a camera-tilt prior, the mannequin's proportions, room floors, glass); Hyouka ep 16 and Mahouka ep 25 then
+measured that version. They come from series already used for tuning (same studios), so they are less independent
+than a new series would be; their frames themselves were never seen.
 
 | Held-out episode | Studio | Scorer frozen at | FrameSeeker: top 5% | Liu et al.: top 5% | Thirds: top 5% | FrameSeeker: top 3 |
 |---|---|---|---|---|---|---|
@@ -260,13 +263,19 @@ that change already frozen.
 | Log Horizon ep 4 | Satelight | `763dc6c` | 5 / 14 | 0 / 14 | 0 / 14 | 5 / 14 |
 | Mahouka ep 22 | Madhouse | `0d54cc0` | 12 / 15 | 1 / 15 | 0 / 15 | 4 / 15 |
 | GATE ep 6 | A-1 Pictures | `0d54cc0` | 11 / 15 | 0 / 15 | 0 / 15 | 1 / 15 |
-| **Total** | | | **36 / 59 (61%)** | **2 / 59 (3%)** | **1 / 59 (2%)** | 13 / 59 |
+| Hyouka ep 16 | Kyoto Animation | `6c7a742` (current) | 10 / 15 | 4 / 15 | 1 / 15 | 3 / 15 |
+| Mahouka ep 25 | Madhouse | `6c7a742` (current) | 3 / 15 | 0 / 15 | 0 / 15 | 0 / 15 |
+| **Total** | | | **49 / 89 (55%)** | **6 / 89 (7%)** | **2 / 89 (2%)** | 16 / 89 |
 
 The baselines were computed with each frozen commit's own code, on the same cameras. Median percentile per episode
-(Oregairu / Log Horizon / Mahouka / GATE): FrameSeeker 95 / 92 / 99 / 97%, Liu et al. 79 / 41 / 49 / 53%, thirds
-76 / 49 / 63 / 47%.
+(Oregairu / Log Horizon / Mahouka 22 / GATE / Hyouka 16 / Mahouka 25): FrameSeeker 95 / 92 / 99 / 97 / 98 / 87%,
+Liu et al. 79 / 41 / 49 / 53 / 80 / 40%, thirds 76 / 49 / 63 / 47 / 81 / 71%.
 
-**All six episodes, current scorer — includes the tuning data.**
+Mahouka ep 25 (3 / 15) is the weakest episode so far. Its misses are the known weak spots, not new ones: backs and
+profiles (5 shots lose most on the face-angle term), small figures in wide shots, subjects cut at a joint by the
+frame's edge, and one near top-down shot whose pitch had to be estimated. The scorer was not changed for it.
+
+**The six episodes the current scorer was tuned on — in-sample, for reference.**
 
 | On all 88 rebuilt shots (89 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
 |---|---|---|---|
@@ -279,10 +288,9 @@ The baselines were computed with each frozen commit's own code, on the same came
   others: both sit near chance. That is not a fault of Liu et al.'s method, which scores how a photograph is
   arranged on its plane; choosing a camera is mostly about what that plane cannot see: how far, how high, from
   which side, at what tilt. The scorer's other terms (shot scale, face angle, tilt, occlusion, …) carry the signal.
-- The held-out figures belong to the frozen versions. The scorer has changed since the last held-out run, using
-  all six episodes (a camera-tilt prior measured on all 88 shots; the mannequin's proportions; room floors; glass),
-  so **the current version has no held-out measurement yet**; the next episodes will give it one.
-- 59 held-out shots from four episodes is a small sample, and every episode is anime.
+- Each held-out figure belongs to the version frozen for it. The current version's own figure is 13 / 30, from two
+  episodes of series already used for tuning.
+- 89 held-out shots from six episodes is a small sample, and every episode is anime.
 - "Top 3" is a harsh measure: there is usually more than one good camera, and the search's best is often a
   different, equally valid one (GATE: 11 / 15 in the top 5%, 1 / 15 in the top 3).
 - Known weak spots: backs and wide establishing shots; the shot scale of action scenes; a person lying down can be
@@ -350,4 +358,5 @@ when an effect is in frame. Example scenes are in `scenes/`, example stories in 
 ## Status
 
 Phases 1–5 work end to end and are deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
-adapter is archived. Next: held-out episodes for the current scorer.
+adapter is archived. Next: the weak spots the held-out runs keep showing (backs, wide shots, joint cuts), then new
+episodes to measure the change.
