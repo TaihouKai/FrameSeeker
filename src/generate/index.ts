@@ -1,28 +1,12 @@
-// Module 3 — generation (phase 6): the shot's structure maps (composition: depth, line art, pose; who is where:
-// region masks) plus the prompt (content) go to an image backend.
-//  - comfy: a ComfyUI server (SDXL + ControlNet depth/line art/pose + a regional prompt per person), configured by
-//    environment (comfy.ts); not configured → GeneratorUnavailable.
-//  - novelai: a stub (NovelAI has no structure control for its V4 models; it may come back for its character
-//    positions, which the region centres give).
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { comfyConfigFromEnv, comfyGenerator } from './comfy.ts';
-import { NotImplemented, type Generator } from './types.ts';
+// Module 3 — generation (phase 6): a shot's scene, camera and structure maps go to an image renderer.
+//
+// The first renderer (SDXL + ControlNet on ComfyUI, with regional prompts, a colour hint for effects and a
+// pose / gender check on candidates) is archived on branch archive/phase6-sdxl-comfy (tag phase6-sdxl-comfy-v1)
+// while existing multi-character, structure-controlled renderers are reviewed. Phase 6 is meant to be a thin
+// adapter from the maps onto one of them.
+import type { Generator } from './types.ts';
 
-export { promptOf, shotTags, viewTags, countTags, NEGATIVE, type Prompt, type CharacterPrompt } from './prompt.ts';
 export { GeneratorUnavailable, NotImplemented, type GenerateInput, type GenerateResult, type Generator } from './types.ts';
-export { checkPose, bestCandidate, type PoseCheck, type PersonCheck, type Joints, type PlannedPose } from './check.ts';
-export { comfyGenerator, comfyConfigFromEnv, COMFY_CLOUD_URL, type ComfyConfig } from './comfy.ts';
-export { workflow, DEFAULT_CONTROL, DEFAULT_SAMPLING, type ComfyModels } from './workflow.ts';
 
-/** ComfyUI, configured from the environment when called; the API key may also sit in ~/.secrets/comfy.key. */
-export const comfy: Generator = comfyGenerator(() => {
-  const keyFile = join(homedir(), '.secrets', 'comfy.key');
-  const key = process.env.COMFY_API_KEY ?? (existsSync(keyFile) ? readFileSync(keyFile, 'utf8').trim() : undefined);
-  return comfyConfigFromEnv({ ...process.env, ...(key ? { COMFY_API_KEY: key } : {}) });
-});
-/** NovelAI image generation (stub). */
-export const novelai: Generator = { name: 'novelai', generate: async () => { throw new NotImplemented('novelai'); } };
-
-export const GENERATORS: Record<string, Generator> = { comfy, novelai };
+/** Renderers by name (none in this version: see the archive). */
+export const GENERATORS: Record<string, Generator> = {};

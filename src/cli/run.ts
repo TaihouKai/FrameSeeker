@@ -1,6 +1,6 @@
-// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator comfy|novelai] [--out dir]
+// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator <name>] [--out dir]
 // The whole pipeline. A .txt goes through all six phases (phases 1–2 call the LLM: Venice, the local test key);
-// a .json scene starts at phase 3. Writes per shot: preview, depth, lineart, pose, a mask per person, the prompt; and report.json.
+// a .json scene starts at phase 3. Writes per shot: preview, depth, lineart, pose, a mask per region, the colour hint (effects); and report.json.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { runScene, runText } from '../pipeline.ts';
@@ -12,9 +12,9 @@ const args = process.argv.slice(2);
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const focus = opt('focus'), peopleFile = opt('people'), k = Number(opt('k') ?? 3), genName = opt('generator'), outOpt = opt('out');
 const file = args[0];
-if (!file) { console.error('usage: npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator comfy|novelai] [--out dir]'); process.exit(2); }
+if (!file) { console.error('usage: npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator <name>] [--out dir]'); process.exit(2); }
 const generator = genName ? GENERATORS[genName] : undefined;
-if (genName && !generator) { console.error(`unknown generator "${genName}" (${Object.keys(GENERATORS).join(', ')})`); process.exit(2); }
+if (genName && !generator) { console.error(`unknown generator "${genName}" (available: ${Object.keys(GENERATORS).join(', ') || 'none: phase 6 is archived, see src/generate/index.ts'})`); process.exit(2); }
 
 const out = outOpt ?? join('out', 'run-' + basename(file, extname(file)));
 mkdirSync(out, { recursive: true });
@@ -33,7 +33,7 @@ r.shots.forEach((s, i) => {
   writeFileSync(join(out, `${n}-lineart.png`), toPng(s.maps.lineart));
   writeFileSync(join(out, `${n}-pose.png`), toPng(s.maps.pose));
   for (const g of s.maps.regions) writeFileSync(join(out, `${n}-mask-${g.id}.png`), toPng(g.mask));
-  writeFileSync(join(out, `${n}-prompt.json`), JSON.stringify(s.prompt, null, 1));
+  if (s.maps.hint) writeFileSync(join(out, `${n}-hint.png`), toPng(s.maps.hint));
   if (s.image) writeFileSync(join(out, `${n}.png`), toPng(s.image));
 });
 const report = {
@@ -42,8 +42,8 @@ const report = {
   notes: r.world.solved.notes,
   shots: r.shots.map((s, i) => ({ name: `shot-${i + 1}`, total: +s.shot.total.toFixed(3), camera: s.shot.cam, info: s.shot.info,
     regions: s.maps.regions.map((g) => ({ id: g.id, kind: g.kind, area: +g.area.toFixed(4), centre: g.centre.map((v) => +v.toFixed(3)), box: g.box.map((v) => +v.toFixed(3)) })),
-    generated: !!s.image, check: s.check, candidates: s.candidates?.map((c) => +c.score.toFixed(2)), note: s.note })),
+    generated: !!s.image, meta: s.meta, note: s.note })),
 };
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 1));
 console.log(`${file}: ${r.shots.length} shot(s) in ${report.seconds.toFixed(1)} s -> ${out}${r.built ? `  (staging: ${r.built.winner.name}, $${report.usd.toFixed(4)})` : ''}`);
-for (const s of report.shots) console.log(`  ${s.name}: ${s.total}  h=${s.info.camera_height?.toFixed(2)} m pitch=${s.info.pitch_deg?.toFixed(0)}° ${s.camera.focal}mm ${s.camera.aspect}${s.check ? `  people as planned ${s.check.score.toFixed(2)} (of ${s.candidates?.length ?? 1})` : ''}${s.note ? '  [' + s.note + ']' : ''}`);
+for (const s of report.shots) console.log(`  ${s.name}: ${s.total}  h=${s.info.camera_height?.toFixed(2)} m pitch=${s.info.pitch_deg?.toFixed(0)}° ${s.camera.focal}mm ${s.camera.aspect}${s.note ? '  [' + s.note + ']' : ''}`);

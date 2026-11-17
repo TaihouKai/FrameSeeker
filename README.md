@@ -14,7 +14,7 @@ camera height, angle, lens, what frames the subject. That part is geometry, so i
 |---|---|---|
 | `src/scene/` | 1. text → scene JSON (LLM, faithful to the text) · 2. staging: the LLM may only *add* set pieces, and each one is kept only if the camera score rises · 3. scene JSON → 3D world (relation solver + set dressing) | `buildScenes`, `realize` |
 | `src/camera/` | 4. camera search scored by composition rules · 5. 2D structure maps of each shot | `shoot`, `maps`, `rate` |
-| `src/generate/` | 6. structure maps + prompt → image backend: a ComfyUI client (SDXL, ControlNet depth / line art / pose, a regional prompt per person); NovelAI is a stub | `promptOf`, `Generator`, `workflow` |
+| `src/generate/` | 6. scene + shot + structure maps → an image renderer (the contract only: the first renderer is archived, see below) | `Generator` |
 
 `src/pipeline.ts` wires them. Each module talks to the next only through its `index.ts`, so any one can be swapped.
 Staging needs the camera's score; it gets it as an injected function, so the scene module never imports the camera.
@@ -54,61 +54,45 @@ The frames and the annotations stay local; the evaluation code is in `src/eval/`
 
 ## Run
 
-Node ≥ 24 (runs TypeScript directly, no build); one optional dependency (onnxruntime-node, for the gender check).
+Node ≥ 24 (runs TypeScript directly, no build), no runtime dependencies.
 
 ```
 npm install
 npm test
-npm run frameseeker -- scenes/reference-truss.json   # phases 3–6 from a scene → out/run-reference-truss/
-npm run frameseeker -- stories/rooftop-chase.txt     # phases 1–6 (needs VENICE_API_KEY)
+npm run frameseeker -- scenes/reference-truss.json   # phases 3–5 from a scene → out/run-reference-truss/
+npm run frameseeker -- stories/rooftop-chase.txt     # phases 1–5 (needs VENICE_API_KEY)
 npm run shot -- scenes/beam-clash.json               # camera search with every score term
 ```
 
-Each shot comes out as a gray-box preview, depth, line art, pose, region masks and a prompt.
+Each shot comes out as a gray-box preview, depth, line art, OpenPose, a mask per region (each person, effect,
+structure and labelled part of the set), each person's planned joints and facing (report.json), and a colour hint
+when an effect is in frame.
 
-## Generation (phase 6)
+## Generation (phase 6): archived, under review
 
-`--generator comfy` sends each shot to a ComfyUI server through its standard HTTP API (upload, queue, poll, download),
-so it works with a local ComfyUI, RunPod, or a hosted service that keeps the API. The workflow uses core nodes only:
-an SDXL checkpoint (optionally v-prediction), ControlNets for depth, line art and pose (strengths and step ranges in
-`src/generate/workflow.ts`), and each person's tags inside their mask. Configuration by environment:
+A renderer gets the scene, the shot and its maps, and makes its own prompt (`src/generate/types.ts`): an
+image-board model wants tags, another XML or sentences.
 
-```
-COMFY_URL=http://127.0.0.1:8188   COMFY_CHECKPOINT=<sdxl>.safetensors   [COMFY_VPRED=1]
-COMFY_CN_DEPTH=<...>   COMFY_CN_LINEART=<...>   COMFY_CN_POSE=<...>   [COMFY_HEADERS='{"Authorization":"Bearer ..."}']
-```
+The first renderer, SDXL + ControlNet on ComfyUI (run on Comfy Cloud), is on branch
+[`archive/phase6-sdxl-comfy`](../../tree/archive/phase6-sdxl-comfy) (tag `phase6-sdxl-comfy-v1`). Most of its work
+went into patching known weaknesses of that stack, which newer multi-character, structure-controlled renderers may
+already solve; so phase 6 is being reconsidered as a thin adapter onto one of them. What the archived renderer
+learned, as requirements for whatever comes next:
 
-For [Comfy Cloud](https://cloud.comfy.org) (a paid plan includes API access), an API key from platform.comfy.org as
-`COMFY_API_KEY` or in `~/.secrets/comfy.key` is enough: the client talks to `https://cloud.comfy.org/api` and uses
-models Cloud has installed (WAI-Illustrious SDXL; the SDXL depth, OpenPose and scribble ControlNets), each overridable.
-
-What the first runs on it taught (details in `src/generate/`):
-
-- **Regional prompts, strictly.** Each person's and each effect's tags go only inside their own mask, the setting
-  only outside them all. With everyone in one prompt, hair and gender swapped between people, and "melting" melted
-  whatever the model chose.
-- **Depth under pose.** A featureless mannequin has the same depth from the front and the back, so which way someone
-  faces must come from the pose (and the tag `facing viewer` / `from behind`); depth 0.8 under pose 1.0.
-- **Check, then keep the best.** Each shot is drawn 4 times (one batch); a pose detector (DWPose, an instrument:
-  coordinates out) finds the people in each picture, and plain geometry (`src/generate/check.ts`) compares them
-  with the planned skeletons: everyone found, near their place, facing the right way (the shoulders' left-right
-  order). On 12 hand-judged pictures it passed no wrong one; it misses some right ones (a back at the frame's edge).
-  Each person's gender is measured too, by an image-board tagger (SmilingWolf's WD SwinV2 v3, on the CPU) on that
-  person's own pixels: `1boy` against `1girl`, the same vocabulary the prompts use. Optional: `npm run get-tagger`
-  (470 MB) and the optional dependency onnxruntime-node; without them the gender is not checked.
-- **The set says what it is.** Indoors, the gray box's parts carry labels (wall, ceiling, floor, desk,
-  blackboard; past the walls: a window), and each gets its own words in its own region, not the scene's free-text
-  description. With "evening light through the windows" over a gray-box wall, the model either painted windows flat
-  on the wall (depth firm) or knocked the wall out for glass (depth loose). A `classroom` place has a blackboard and
-  rows of desks.
-- **Effects need a colour hint.** A beam is a few pixels in depth and line art; a shot with an effect in frame starts
-  from a colour hint (the gray box with the sky of the scene's time of day, people grey) at denoise 0.9.
-
-Without a server the pipeline still writes the maps and prompts and notes that nothing was generated.
+- **Each thing's words only in its own region.** People, effects, structures and the labelled parts of the set each
+  get their own prompt inside their own mask; the free-text description of the place never reaches a wall. With
+  everyone in one prompt, hair and gender swapped between people, "melting" melted whatever the model chose, and
+  "evening light through the windows" put windows on gray-box walls.
+- **Which way someone faces comes from the pose, not the depth** (a featureless mannequin has the same depth front and
+  back); a person seen from behind gets no expression tags.
+- **The set loosely, the people firmly**: firm depth on bare stand-in walls fights the prompt (windows painted flat).
+- **Thin effects need more than structure maps** (a beam is a few pixels of depth): a colour hint helped.
+- **Glass**: its shape in the depth, except over a person behind it.
+- **Measure, then pick**: the image model leaned to drawing girls and no prompt lever fixed it. Drawing 4 candidates
+  and measuring each with existing instruments (DWPose for who is where and facing which way, a Danbooru tagger for
+  each person's gender), compared with the plan by plain geometry, picked a right picture whenever there was one.
 
 ## Status
 
-Phases 1–6 run end to end on Comfy Cloud. The generated pictures keep the gray box's composition (camera height,
-angle, lens, who is where). One picture alone gets every person right about 3 times in 4 in the hardest test so far
-(a back-view person in the foreground); with 4 candidates and the pose check, both classroom shots came out right.
-The check cannot see effects.
+Phases 1–5 work end to end. Phase 6 ran on Comfy Cloud with the archived renderer (the pictures kept the gray box's
+composition); which renderer to use next is being decided after an outside review.
