@@ -18,12 +18,19 @@ export interface ComfyConfig {
   pollEvery?: number;
 }
 
-/** Configuration from the environment: COMFY_URL, COMFY_HEADERS (JSON), COMFY_CHECKPOINT, COMFY_VPRED=1, COMFY_CN_DEPTH / _LINEART / _POSE. */
+export const COMFY_CLOUD_URL = 'https://cloud.comfy.org/api';
+
+/**
+ * Configuration from the environment: COMFY_URL, COMFY_API_KEY (sent as X-API-Key), COMFY_HEADERS (JSON),
+ * COMFY_CHECKPOINT, COMFY_VPRED=1, COMFY_CN_DEPTH / _LINEART / _POSE. With an API key and no URL, Comfy Cloud.
+ */
 export function comfyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ComfyConfig | null {
-  if (!env.COMFY_URL || !env.COMFY_CHECKPOINT) return null;
+  const url = env.COMFY_URL ?? (env.COMFY_API_KEY ? COMFY_CLOUD_URL : undefined);
+  if (!url || !env.COMFY_CHECKPOINT) return null;
+  const headers: Record<string, string> = { ...(env.COMFY_HEADERS ? JSON.parse(env.COMFY_HEADERS) : {}), ...(env.COMFY_API_KEY ? { 'X-API-Key': env.COMFY_API_KEY } : {}) };
   return {
-    url: env.COMFY_URL,
-    headers: env.COMFY_HEADERS ? JSON.parse(env.COMFY_HEADERS) : undefined,
+    url,
+    headers: Object.keys(headers).length ? headers : undefined,
     models: {
       checkpoint: env.COMFY_CHECKPOINT, vpred: env.COMFY_VPRED === '1',
       controlnet: { depth: env.COMFY_CN_DEPTH, lineart: env.COMFY_CN_LINEART, pose: env.COMFY_CN_POSE },
@@ -76,17 +83,45 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   const queued = await (await call('/prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: graph, client_id: tag }) })).json() as { prompt_id?: string; error?: unknown; node_errors?: unknown };
   if (!queued.prompt_id) throw new Error(`ComfyUI refused the workflow: ${JSON.stringify(queued.error ?? queued.node_errors)}`);
 
+  const id = queued.prompt_id;
   const deadline = Date.now() + (cfg.timeout ?? 10 * 60_000);
+  // local ComfyUI answers /history/{id}; Comfy Cloud has no such route and answers /jobs/{id} instead
+  let cloud = false;
   for (;;) {
-    const h = await (await call(`/history/${queued.prompt_id}`)).json() as Record<string, { status?: { status_str?: string; messages?: unknown }; outputs?: Record<string, { images?: { filename: string; subfolder: string; type: string }[] }> }>;
-    const entry = h[queued.prompt_id];
+    let entry: Entry | undefined;
+    if (!cloud) {
+      const r = await fetch(`${base}/history/${id}`, { headers, signal });
+      if (r.status === 404 || r.status === 405) cloud = true;
+      else if (!r.ok) throw new Error(`ComfyUI GET /history/${id}: ${r.status} ${(await r.text()).slice(0, 300)}`);
+      else entry = ((await r.json()) as Record<string, Entry>)[id];
+    }
+    if (cloud) {
+      const j = await (await call(`/jobs/${id}`)).json() as { status?: string; outputs?: Entry['outputs']; execution_error?: unknown; error_message?: unknown };
+      if (j.status && FAILED.has(j.status)) throw new Error(`ComfyUI failed (${j.status}): ${JSON.stringify(j.execution_error ?? j.error_message ?? '').slice(0, 500)}`);
+      entry = { outputs: j.outputs };
+    }
     if (entry?.status?.status_str === 'error') throw new Error(`ComfyUI failed: ${JSON.stringify(entry.status.messages).slice(0, 500)}`);
     const img = entry?.outputs?.[OUTPUT_NODE]?.images?.[0];
-    if (img) {
-      const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder, type: img.type });
-      return decodePng(new Uint8Array(await (await call(`/view?${q}`)).arrayBuffer()));
-    }
+    if (img) return decodePng(await view(img));
     if (Date.now() > deadline) throw new Error('ComfyUI: timed out');
     await new Promise((r) => setTimeout(r, cfg.pollEvery ?? 1500));
   }
+
+  /** /view returns the bytes (local) or a redirect to a signed storage URL (cloud), which must be fetched without our key */
+  async function view(img: { filename: string; subfolder: string; type: string }): Promise<Uint8Array> {
+    const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder ?? '', type: img.type ?? 'output' });
+    const r = await fetch(`${base}/view?${q}`, { headers, redirect: 'manual', signal });
+    if (r.status >= 300 && r.status < 400) {
+      const loc = r.headers.get('location');
+      if (!loc) throw new Error('ComfyUI /view: redirect without a location');
+      const s = await fetch(new URL(loc, base + '/'), { signal });
+      if (!s.ok) throw new Error(`ComfyUI output download: ${s.status}`);
+      return new Uint8Array(await s.arrayBuffer());
+    }
+    if (!r.ok) throw new Error(`ComfyUI GET /view: ${r.status} ${(await r.text()).slice(0, 300)}`);
+    return new Uint8Array(await r.arrayBuffer());
+  }
 }
+
+type Entry = { status?: { status_str?: string; messages?: unknown }; outputs?: Record<string, { images?: { filename: string; subfolder: string; type: string }[] }> };
+const FAILED = new Set(['failed', 'error', 'non_retryable_error', 'lost', 'cancelled', 'canceled']);

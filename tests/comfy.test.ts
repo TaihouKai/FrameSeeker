@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFileSync } from 'node:fs';
-import { comfyGenerator, GeneratorUnavailable, promptOf, workflow, type ComfyConfig } from '../src/generate/index.ts';
+import { COMFY_CLOUD_URL, comfyConfigFromEnv, comfyGenerator, GeneratorUnavailable, promptOf, workflow, type ComfyConfig } from '../src/generate/index.ts';
 import { realize, type Scene } from '../src/scene/index.ts';
 import { maps, shoot } from '../src/camera/index.ts';
 import { decodePng, encodePng } from '../src/shared/png.ts';
@@ -23,14 +23,31 @@ const OUTPUTS: Record<string, number> = { CheckpointLoaderSimple: 3, ControlNetA
 const body = (req: IncomingMessage) => new Promise<Buffer>((res) => { const c: Buffer[] = []; req.on('data', (d) => c.push(d)); req.on('end', () => res(Buffer.concat(c))); });
 
 /** A fake ComfyUI: checks uploads and the graph, "renders" a 4x2 picture after two polls. */
-async function fakeComfy() {
+/** cloud: imitates Comfy Cloud — routes under /api, no /history (outputs from /api/jobs/{id}), /view redirects to a signed URL that refuses our key */
+async function fakeComfy(cloud = false) {
   const uploaded = new Set<string>();
   const seen: { graph?: Record<string, { class_type: string; inputs: Record<string, unknown> }>; problems: string[]; auth: string[] } = { problems: [], auth: [] };
   let polls = 0;
   const picture = encodePng(4, 2, new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255, 9, 9, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), 3);
+  const outputs = { save: { images: [{ filename: 'out.png', subfolder: '', type: 'output' }] } };
   const server = createServer(async (req, res) => {
-    seen.auth.push(String(req.headers['x-api-key']));
     const url = new URL(req.url!, 'http://x');
+    if (cloud && url.pathname === '/signed/out.png') {
+      if (req.headers['x-api-key']) seen.problems.push('key sent to the signed storage URL');
+      res.setHeader('content-type', 'image/png'); res.end(picture); return;
+    }
+    seen.auth.push(String(req.headers['x-api-key']));
+    if (cloud) {
+      if (!url.pathname.startsWith('/api/')) { res.statusCode = 404; res.end('no'); return; }
+      url.pathname = url.pathname.slice(4);
+      if (url.pathname.startsWith('/history')) { res.statusCode = 404; res.end('no'); return; }
+      if (url.pathname === '/jobs/p1') {
+        polls++;
+        res.end(JSON.stringify(polls < 2 ? { id: 'p1', status: 'in_progress' } : { id: 'p1', status: 'completed', outputs }));
+        return;
+      }
+      if (url.pathname === '/view') { res.statusCode = 302; res.setHeader('location', '/signed/out.png?sig=1'); res.end(); return; }
+    }
     if (url.pathname === '/upload/image' && req.method === 'POST') {
       const text = (await body(req)).toString('latin1');
       const name = /filename="([^"]+)"/.exec(text)?.[1];
@@ -53,7 +70,7 @@ async function fakeComfy() {
       res.end(JSON.stringify({ prompt_id: 'p1', number: 0, node_errors: {} }));
     } else if (url.pathname === '/history/p1') {
       polls++;
-      res.end(JSON.stringify(polls < 2 ? {} : { p1: { status: { status_str: 'success' }, outputs: { save: { images: [{ filename: 'out.png', subfolder: '', type: 'output' }] } } } }));
+      res.end(JSON.stringify(polls < 2 ? {} : { p1: { status: { status_str: 'success' }, outputs } }));
     } else if (url.pathname === '/view' && url.searchParams.get('filename') === 'out.png') {
       res.setHeader('content-type', 'image/png'); res.end(picture);
     } else { res.statusCode = 404; res.end('no'); }
@@ -99,6 +116,25 @@ describe('ComfyUI generator', () => {
     const g = workflow({ models: { checkpoint: 'x', controlnet: {} }, prompt: { scene: ['street'], characters: [], negative: ['nsfw'] }, width: 64, height: 64, images: {}, masks: {} });
     const kinds = Object.values(g).map((n) => n.class_type).sort();
     expect(kinds).toEqual(['CLIPTextEncode', 'CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSampler', 'SaveImage', 'VAEDecode']);
+  });
+
+  it('CF5 Comfy Cloud: /api routes, outputs from /jobs/{id}, the signed download fetched without the key', async () => {
+    const srv = await fakeComfy(true);
+    try {
+      const w = realize(scene), shot = shoot(w, { n: 300, refine: 2, iters: 4, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
+      const cfg = comfyConfigFromEnv({ COMFY_URL: `${srv.url}/api`, COMFY_API_KEY: 'k', COMFY_CHECKPOINT: 'x.safetensors', COMFY_CN_DEPTH: 'd.safetensors' })!;
+      const img = await comfyGenerator({ ...cfg, pollEvery: 5 }).generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832 });
+      expect(srv.seen.problems).toEqual([]);
+      expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
+      expect(img).toEqual(decodePng(srv.picture));
+    } finally { srv.close(); }
+  });
+
+  it('CF6 an API key alone means Comfy Cloud', () => {
+    const cfg = comfyConfigFromEnv({ COMFY_API_KEY: 'k', COMFY_CHECKPOINT: 'x' })!;
+    expect(cfg.url).toBe(COMFY_CLOUD_URL);
+    expect(cfg.headers).toEqual({ 'X-API-Key': 'k' });
+    expect(comfyConfigFromEnv({ COMFY_CHECKPOINT: 'x' })).toBeNull();
   });
 
   it('CF4 PNG round trip (the decoder reads what the encoder writes, grey and RGB)', () => {

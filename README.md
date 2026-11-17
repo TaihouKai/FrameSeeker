@@ -76,6 +76,10 @@ COMFY_URL=http://127.0.0.1:8188   COMFY_CHECKPOINT=<sdxl>.safetensors   [COMFY_V
 COMFY_CN_DEPTH=<...>   COMFY_CN_LINEART=<...>   COMFY_CN_POSE=<...>   [COMFY_HEADERS='{"Authorization":"Bearer ..."}']
 ```
 
+For [Comfy Cloud](https://cloud.comfy.org) (a paid plan includes API access), give an API key from platform.comfy.org
+as `COMFY_API_KEY` or in `~/.secrets/comfy.key` and leave `COMFY_URL` unset: the client then talks to
+`https://cloud.comfy.org/api` (results from `/api/jobs/{id}`, downloads through the signed redirect).
+
 Without a server the pipeline still writes the maps and prompts and notes that nothing was generated.
 
 ## Status
