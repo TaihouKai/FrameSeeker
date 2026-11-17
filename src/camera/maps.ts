@@ -150,6 +150,9 @@ export interface Region {
 
 /** The angle between where a person faces and the camera, degrees (0 = towards it, 180 = their back). */
 export function faceAngleOf(a: SolvedActor, cam: Cam): number {
+  // a face turned up or down (lying on the back) has no horizontal direction: neither front nor back (90°)
+  const nose = sub(a.points[KP.nose], a.head);
+  if (Math.hypot(nose[0], nose[2]) < 0.5 * Math.hypot(...nose)) return 90;
   const to = sub(cam.pos, a.head), d = Math.hypot(to[0], to[2]) || 1, fd = faceDir(a);
   return Math.acos(Math.max(-1, Math.min(1, (to[0] * fd[0] + to[2] * fd[2]) / d))) * 180 / Math.PI;
 }

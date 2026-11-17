@@ -25,8 +25,11 @@ export interface Pose {
   headSide?: 'left' | 'right';
 }
 
+// Proportions about 7.5 heads: crown 1.0, chin 0.865, shoulder line 0.81. The OpenPose neck is the shoulders'
+// midpoint, at their height; placed above them (0.855, shoulders 0.83) the skeleton itself had no neck, and the
+// pictures drawn from it had short necks.
 const BASE: Local[] = [
-  [0, 0.925, 0.06], [0, 0.855, 0], [0.115, 0.83, 0], [0.135, 0.65, 0], [0.14, 0.48, 0.02], [-0.115, 0.83, 0], [-0.135, 0.65, 0], [-0.14, 0.48, 0.02],
+  [0, 0.925, 0.06], [0, 0.81, 0], [0.115, 0.81, 0], [0.135, 0.635, 0], [0.14, 0.47, 0.02], [-0.115, 0.81, 0], [-0.135, 0.635, 0], [-0.14, 0.47, 0.02],
   [0.07, 0.52, 0], [0.07, 0.29, 0.01], [0.07, 0.05, 0], [-0.07, 0.52, 0], [-0.07, 0.29, 0.01], [-0.07, 0.05, 0],
   [0.025, 0.945, 0.055], [-0.025, 0.945, 0.055], [0.06, 0.935, 0], [-0.06, 0.935, 0],
 ];

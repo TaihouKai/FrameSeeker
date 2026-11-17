@@ -69,12 +69,12 @@ export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceA
   const characters = focusFirst.map((a) => {
     const angle = people?.find((r) => r.id === a.id)?.faceAngle;
     // a face that cannot be seen has no expression to draw (the tag makes the model turn the head)
-    const back = angle !== undefined && angle > 120;
+    const back = angle !== undefined && angle > 120, lying = a.pose === 'lie';
     return {
       id: a.id,
       // image-board models lean to drawing girls; "male focus" is the board's tag for a male subject, and in a
       // person's own region it says this one is the man (with "1boy" alone the boy came out a girl 3 times in 4)
-      tags: tags([a.prompt.tag, a.prompt.series, ...a.prompt.look, ...(a.prompt.look.includes('1boy') ? ['male focus'] : []), ...a.prompt.outfit, ...(back ? [] : a.prompt.expression), ...viewTags(angle)]),
+      tags: tags([a.prompt.tag, a.prompt.series, ...a.prompt.look, ...(a.prompt.look.includes('1boy') ? ['male focus'] : []), ...a.prompt.outfit, ...(back ? [] : a.prompt.expression), ...(lying ? ['lying', 'on back'] : viewTags(angle))]),
     };
   });
   const sceneTags = [

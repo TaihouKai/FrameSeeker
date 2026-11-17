@@ -168,7 +168,8 @@ export function solve(scene: Scene): Solved {
       points[wr] = add(points[el], mul(d, fore));
     }
     const head = lerp(points[KP.rEar], points[KP.lEar], 0.5);
-    const headR = 0.075 * h;
+    // the head from crown (1.0) to chin (0.865); a larger sphere sank into the shoulders
+    const headR = 0.068 * h;
     const solved: SolvedActor = { id: a.id, height: h, pos: at, fwd, pose: a.pose, mirrored, points, head, headR, prims: [] };
     solved.prims = bodyPrims(solved);
     return solved;
@@ -287,14 +288,17 @@ function bodyPrims(a: SolvedActor): Prim[] {
   const p = a.points, h = a.height;
   const midHip = lerp(p[KP.rHip], p[KP.lHip], 0.5);
   const cap = (x: V3, y: V3, r: number): Prim => ({ kind: 'capsule', a: x, b: y, r: r * h, owner: a.id, role: 'actor' });
+  // a point lowered by r body heights (a capsule's end, so its round cap tops out at the point)
+  const below = (x: V3, r: number): V3 => [x[0], x[1] - r * h, x[2]];
   return [
     { kind: 'sphere', c: a.head, r: a.headR, owner: a.id, role: 'actor' },
     cap(p[KP.neck], a.head, 0.028),
     // a flat torso: a thin core and a side from each shoulder to its hip. (One round capsule of the torso's width had
-    // a cap bigger than the head; image models drew it as a second head.)
-    cap(p[KP.neck], midHip, 0.065),
-    cap(lerp(p[KP.rShoulder], p[KP.neck], 0.25), p[KP.rHip], 0.05),
-    cap(lerp(p[KP.lShoulder], p[KP.neck], 0.25), p[KP.lHip], 0.05),
+    // a cap bigger than the head; image models drew it as a second head.) Every cap stays under the shoulder line, so
+    // the neck shows (caps up to the chin buried it).
+    cap(below(p[KP.neck], 0.065), midHip, 0.065),
+    cap(below(lerp(p[KP.rShoulder], p[KP.neck], 0.25), 0.05), p[KP.rHip], 0.05),
+    cap(below(lerp(p[KP.lShoulder], p[KP.neck], 0.25), 0.05), p[KP.lHip], 0.05),
     cap(p[KP.rHip], p[KP.lHip], 0.06),
     cap(p[KP.rShoulder], p[KP.rElbow], 0.035), cap(p[KP.rElbow], p[KP.rWrist], 0.03),
     cap(p[KP.lShoulder], p[KP.lElbow], 0.035), cap(p[KP.lElbow], p[KP.lWrist], 0.03),
