@@ -1,4 +1,4 @@
-// Stage 1: relations in the scene JSON -> exact geometry. Deterministic; errors are readable.
+// Phase 3, the solver: relations in the scene JSON -> exact geometry. Deterministic; errors are readable.
 import { add, dist, lerp, mul, norm, sub, yawDir, yawTo, type V3 } from '../shared/vec.ts';
 import { POSES, mirror, toWorld, type Local } from './poses.ts';
 import { HEAD, KP } from '../shared/skeleton.ts';

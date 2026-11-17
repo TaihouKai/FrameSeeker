@@ -1,4 +1,4 @@
-// Stage 3 scoring: hard constraints, then composition terms in [0, 1], weighted by the shot's intent.
+// Phase 4, scoring: hard constraints, then composition terms in [0, 1], weighted by the shot's intent.
 // Each term names the textbook principle it encodes.
 import { add, dist, lerp, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, corners, inside, type Prim, type World } from '../shared/geom.ts';

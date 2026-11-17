@@ -1,4 +1,4 @@
-// Stage 2: set dressing by the kind of place, so the camera search has something to frame with.
+// Phase 3, set dressing by the kind of place, so the camera search has something to frame with.
 // Deterministic (seeded by the scene); nothing is put where it would block the action, the focus or the payoff.
 import { add, hash, lerp, mul, norm, rng, sub, yawTo, type V3 } from '../shared/vec.ts';
 import { clear, inside, type Prim, type World } from '../shared/geom.ts';

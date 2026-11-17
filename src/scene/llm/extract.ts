@@ -1,4 +1,4 @@
-// Stage 0a: one moment of a story -> scene JSON, faithful to the text. The solver validates the
+// Phase 1: one moment of a story -> scene JSON, faithful to the text. The solver validates the
 // answer; its error goes back to the model once for a fix.
 import { solve } from '../solve.ts';
 import type { Scene } from '../types.ts';

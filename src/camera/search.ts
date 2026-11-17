@@ -1,4 +1,4 @@
-// Stage 3 search: random cameras around the focus, the rejected dropped, the best refined by local
+// Phase 4, search: random cameras around the focus, the rejected dropped, the best refined by local
 // search, then the top K that differ from each other. Seeded: the same scene and seed give the same shots.
 import { add, dist, lerp, mul, norm, rng, sub, type V3 } from '../shared/vec.ts';
 import { FOCALS, type Aspect, type Cam } from './camera.ts';
