@@ -5,10 +5,15 @@ import { add, cross, dot, mul, norm, rotY, sub, type V3 } from './vec.ts';
 export type Role = 'actor' | 'structure' | 'dressing';
 
 /** label: what a dressing piece is (wall, ceiling, window, floor, desk), so the picture's regions can be named */
-interface Base { owner: string; role: Role; thin?: boolean; label?: string }
+/**
+ * label: what a dressing piece is (wall, ceiling, window, floor, desk), so the picture's regions can be named.
+ * glass: seen through: rays pass it (occlusion, depth, the camera's checks); only its outline and region are drawn.
+ */
+interface Base { owner: string; role: Role; thin?: boolean; label?: string; glass?: boolean }
 export type Prim =
   | (Base & { kind: 'box'; c: V3; half: V3; yaw: number })
-  | (Base & { kind: 'capsule'; a: V3; b: V3; r: number })
+  /** flat: a cylinder (flat discs at a and b instead of round caps: a tank, a column) */
+  | (Base & { kind: 'capsule'; a: V3; b: V3; r: number; flat?: boolean })
   | (Base & { kind: 'sphere'; c: V3; r: number });
 
 export interface World { prims: Prim[]; groundY: number }
@@ -48,7 +53,7 @@ export function raySphere(o: V3, d: V3, c: V3, r: number): { t: number; normal: 
 }
 
 /** Ray against a capsule (Inigo Quilez's capsule intersection); d must be a unit vector. */
-export function rayCapsule(o: V3, d: V3, a: V3, b: V3, r: number): { t: number; normal: V3 } | null {
+export function rayCapsule(o: V3, d: V3, a: V3, b: V3, r: number, flat = false): { t: number; normal: V3 } | null {
   const ba = sub(b, a), oa = sub(o, a);
   const baba = dot(ba, ba), bard = dot(ba, d), baoa = dot(ba, oa), rdoa = dot(d, oa), oaoa = dot(oa, oa);
   const A = baba - bard * bard, B = baba * rdoa - baoa * bard, C = baba * oaoa - baoa * baoa - r * r * baba;
@@ -62,7 +67,18 @@ export function rayCapsule(o: V3, d: V3, a: V3, b: V3, r: number): { t: number; 
       return { t, normal: norm(sub(p, q)) };
     }
   }
-  // the caps
+  // the caps: flat discs (a cylinder) or half spheres
+  if (flat) {
+    const n = norm(ba);
+    let best: { t: number; normal: V3 } | null = null;
+    for (const [c, nc] of [[a, mul(n, -1)], [b, n]] as [V3, V3][]) {
+      const den = dot(d, nc);
+      if (Math.abs(den) < EPS) continue;
+      const t = dot(sub(c, o), nc) / den;
+      if (t > EPS && (!best || t < best.t) && Math.hypot(...sub(add(o, mul(d, t)), c)) <= r) best = { t, normal: nc };
+    }
+    return best;
+  }
   const s1 = raySphere(o, d, a, r), s2 = raySphere(o, d, b, r);
   if (s1 && s2) return s1.t < s2.t ? s1 : s2;
   return s1 || s2;
@@ -71,7 +87,7 @@ export function rayCapsule(o: V3, d: V3, a: V3, b: V3, r: number): { t: number; 
 export function rayPrim(o: V3, d: V3, p: Prim): { t: number; normal: V3 } | null {
   if (p.kind === 'box') return rayBox(o, d, p);
   if (p.kind === 'sphere') return raySphere(o, d, p.c, p.r);
-  return rayCapsule(o, d, p.a, p.b, p.r);
+  return rayCapsule(o, d, p.a, p.b, p.r, p.flat);
 }
 
 /** The first hit of a ray (d unit) within maxT, the ground included; owners in `skip` are ignored. */
@@ -82,7 +98,7 @@ export function cast(w: World, o: V3, d: V3, maxT = Infinity, skip?: ReadonlySet
     if (t > EPS && t < maxT) best = { t, prim: null, normal: [0, 1, 0] };
   }
   for (const p of w.prims) {
-    if (skip && skip.has(p.owner)) continue;
+    if (p.glass || (skip && skip.has(p.owner))) continue;
     const h = rayPrim(o, d, p);
     if (h && h.t < (best ? best.t : maxT)) best = { t: h.t, prim: p, normal: h.normal };
   }
@@ -105,7 +121,9 @@ export function inside(p: Prim, q: V3, margin = 0): boolean {
   }
   if (p.kind === 'sphere') return Math.hypot(...sub(q, p.c)) <= p.r + margin;
   const ba = sub(p.b, p.a), qa = sub(q, p.a);
-  const h = Math.max(0, Math.min(1, dot(qa, ba) / dot(ba, ba)));
+  const along = dot(qa, ba) / dot(ba, ba);
+  if (p.flat) { const L = Math.sqrt(dot(ba, ba)); if (along * L < -margin || along * L > L + margin) return false; }
+  const h = Math.max(0, Math.min(1, along));
   return Math.hypot(...sub(qa, mul(ba, h))) <= p.r + margin;
 }
 

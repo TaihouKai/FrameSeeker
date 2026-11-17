@@ -159,7 +159,7 @@ export function workflow(input: WorkflowInput): Graph {
     positive = node('ConditioningCombine', { conditioning_1: subjects, conditioning_2: background });
     if (environment) positive = node('ConditioningCombine', { conditioning_1: positive, conditioning_2: environment });
   } else {
-    positive = text([...quality, ...input.prompt.scene, ...input.prompt.characters.flatMap((c) => c.tags), ...input.prompt.effects.flatMap((e) => e.tags)]);
+    positive = text([...quality, ...input.prompt.scene, ...input.prompt.characters.flatMap((c) => c.tags), ...input.prompt.effects.flatMap((e) => e.tags), ...(input.prompt.environment ?? []).flatMap((e) => e.tags)]);
     [positive, negative] = control(positive, negative, ctl);
   }
 

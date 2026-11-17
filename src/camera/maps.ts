@@ -10,7 +10,7 @@
 //    nose or eyes, as a detector would see it;
 //  - regions: a mask per person and per effect (what of it is visible), for regional prompting.
 import { add, dist, dot, mul, sub, type V3 } from '../shared/vec.ts';
-import { cast, clear, inside, raySphere, type World } from '../shared/geom.ts';
+import { cast, clear, inside, rayPrim, raySphere, type World } from '../shared/geom.ts';
 import type { Image } from '../shared/image.ts';
 import { INDOOR_KINDS } from '../scene/index.ts';
 import type { Solved, SolvedActor } from '../scene/solve.ts';
@@ -23,8 +23,10 @@ const Kind = { Sky: 0, Ground: 1, Actor: 2, Structure: 3, Dressing: 4 } as const
 export interface GBuffer {
   width: number; height: number;
   frame: Frame;
-  /** distance along the ray (Infinity: sky) */
+  /** distance along the ray (Infinity: sky); glass is passed through */
   t: Float32Array;
+  /** the nearest glass in front, if nearer than t (else Infinity): seen through, but it has a shape */
+  glassT: Float32Array;
   normal: Float32Array;
   /** world height of the hit point */
   y: Float32Array;
@@ -42,13 +44,15 @@ export function gbuffer(w: World, cam: Cam, scale = 1): GBuffer {
   const f = frame(cam);
   const W = Math.round(SIZE[cam.aspect].w * scale), H = Math.round(SIZE[cam.aspect].h * scale), N = W * H;
   const g: GBuffer = {
-    width: W, height: H, frame: f, t: new Float32Array(N).fill(Infinity), normal: new Float32Array(N * 3), y: new Float32Array(N),
+    width: W, height: H, frame: f, t: new Float32Array(N).fill(Infinity), glassT: new Float32Array(N).fill(Infinity), normal: new Float32Array(N * 3), y: new Float32Array(N),
     prim: new Int32Array(N).fill(-1), kind: new Uint8Array(N), owner: new Int32Array(N).fill(-1), owners: [],
   };
   const ownerIdx = new Map<string, number>();
   const primIdx = new Map(w.prims.map((p, i) => [p, i]));
+  const glass = w.prims.filter((p) => p.glass);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, d = dirAt(g, x, y);
+    for (const p of glass) { const h = rayPrim(cam.pos, d, p); if (h && h.t < g.glassT[i]) g.glassT[i] = h.t; }
     const hit = cast(w, cam.pos, d, 5000);
     if (!hit) continue;
     g.t[i] = hit.t;
@@ -65,15 +69,21 @@ export function gbuffer(w: World, cam: Cam, scale = 1): GBuffer {
 }
 
 /** Inverse depth over the 2nd–98th percentile: one wall at the lens does not flatten the rest. */
+/**
+ * For the image model, glass is a surface: a tank drawn from its outline alone came out a flat pane, so its shape is
+ * in the depth.
+ */
 export function depthOf(g: GBuffer): Image {
+  // …except over a person behind it (someone in a capsule): a pane in the depth hid them and became a curtain
+  const T = g.t.map((t, i) => g.kind[i] === Kind.Actor ? t : Math.min(t, g.glassT[i]));
   const inv: number[] = [];
-  for (const t of g.t) if (t < Infinity) inv.push(1 / t);
+  for (const t of T) if (t < Infinity) inv.push(1 / t);
   inv.sort((a, b) => a - b);
   const lo = inv.length ? inv[Math.floor(inv.length * 0.02)] : 0, hi = inv.length ? inv[Math.min(inv.length - 1, Math.floor(inv.length * 0.98))] : 1;
   const px = new Uint8Array(g.width * g.height);
   for (let i = 0; i < px.length; i++) {
-    if (g.t[i] === Infinity) continue;
-    const v = Math.max(0, Math.min(1, (1 / g.t[i] - lo) / Math.max(1e-9, hi - lo)));
+    if (T[i] === Infinity) continue;
+    const v = Math.max(0, Math.min(1, (1 / T[i] - lo) / Math.max(1e-9, hi - lo)));
     px[i] = Math.round(20 + 235 * v);
   }
   return { width: g.width, height: g.height, channels: 1, pixels: px };
@@ -110,7 +120,7 @@ export function lineartOf(g: GBuffer, w: World, effects: Region[] = []): Image {
     if (y + 1 < H && edge(i, i + W)) { px[i] = 255; px[i + W] = 255; }
   }
   // effects drawn over: the outline of what is visible of each beam and blast
-  for (const r of effects) if (r.kind === 'line' || r.kind === 'volume') outline(r.mask.pixels, W, H, px);
+  for (const r of effects) if (r.kind === 'line' || r.kind === 'volume' || r.glass) outline(r.mask.pixels, W, H, px);
   return { width: W, height: H, channels: 1, pixels: px };
 }
 
@@ -125,7 +135,10 @@ function outline(mask: Uint8Array, W: number, H: number, out: Uint8Array) {
 export interface Region {
   id: string;
   /** environment: a labelled part of the set (id env-<label>: wall, ceiling, floor, desk, window) */
-  kind: 'person' | 'line' | 'volume' | 'damage' | 'environment';
+  /** structure: one of the scene's own things (id: its id) */
+  kind: 'person' | 'line' | 'volume' | 'damage' | 'environment' | 'structure';
+  /** a see-through structure: its region is where it is, in front of whatever is behind (people inside a tank) */
+  glass?: boolean;
   /** visible area as a fraction of the frame */
   area: number;
   /** normalized [u0, v0, u1, v1] of the visible pixels */
@@ -199,6 +212,22 @@ export function regionsOf(g: GBuffer, s: Solved, w: World): Region[] {
       if (inside(box, add(cam.pos, mul(dirAt(g, x, y), g.t[i])), 0.05)) px[i] = 255;
     }
     push(region(d.id, 'damage', px, W, H));
+  }
+  // the scene's own things (structures): what is seen of each; a glass one wherever it stands in front
+  for (const st of s.structures.values()) {
+    const px = new Uint8Array(W * H), glassy = st.prims.some((p) => p.glass);
+    if (glassy) {
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const d = dirAt(g, x, y), i = y * W + x;
+        if (st.prims.some((p) => { const h = rayPrim(cam.pos, d, p); return !!h && h.t < g.t[i]; })) px[i] = 255;
+      }
+    } else {
+      const o = g.owners.indexOf(st.id);
+      if (o >= 0) for (let i = 0; i < W * H; i++) if (g.owner[i] === o) px[i] = 255;
+    }
+    const r = region(st.id, 'structure', px, W, H);
+    if (r && glassy) r.glass = true;
+    push(r);
   }
   // the set's own parts by their labels; indoors, whatever is seen past the walls (sky, ground) is through a window
   const indoor = INDOOR_KINDS.has(s.scene.place.kind);

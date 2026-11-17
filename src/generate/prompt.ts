@@ -12,7 +12,10 @@ export interface Prompt {
   characters: CharacterPrompt[];
   /** one entry per effect (beam, explosion, damage): drawn where its region is, not anywhere in the picture */
   effects: CharacterPrompt[];
-  /** one entry per labelled part of the set in frame (env-wall, env-window, …): words for it alone, from the label */
+  /**
+   * one entry per part of the set in frame: labelled dressing (env-wall, env-window, …: its label's words) and the
+   * scene's own structures (the words written for them), each for its own region
+   */
   environment: CharacterPrompt[];
   negative: string[];
 }
@@ -77,14 +80,18 @@ export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceA
   const sceneTags = [
     ...countTags(characters.map((c) => c.tags)),
     ...tags([scene.place.description, scene.time.of_day, scene.time.weather]),
-    ...scene.structures.flatMap((s) => tags(s.prompt)),
     ...(shot ? shotTags(shot) : []),
   ];
   // effects by themselves: in the whole-picture prompt "melting" melted whatever the model chose and the beam was lost
   const effects = scene.effects.map((e) => ({ id: e.id, tags: tags(e.prompt) })).filter((e) => e.tags.length);
   const time = tags([scene.time.of_day, scene.time.weather]);
   // the kind of place, where the board has a word for it
-  const where = scene.place.kind === 'classroom' ? ['classroom'] : scene.place.kind === 'corridor' ? ['hallway'] : [];
-  const env = (environment ?? []).flatMap((id) => { const t = ENVIRONMENT_TAGS[id.replace(/^env-/, '')]; return t ? [{ id, tags: [...t, ...where, ...time] }] : []; });
+  const where = [...new Set([...(scene.place.kind === 'classroom' ? ['classroom'] : scene.place.kind === 'corridor' ? ['hallway'] : []), ...tags(scene.place.tags)])];
+  // the set's labelled parts by their label's words; the scene's own things (structures) by the words written for them
+  const env = (environment ?? []).flatMap((id) => {
+    const st = scene.structures.find((s) => s.id === id);
+    const t = st ? tags(st.prompt) : ENVIRONMENT_TAGS[id.replace(/^env-/, '')];
+    return t?.length ? [{ id, tags: [...t, ...where, ...time] }] : [];
+  });
   return { scene: [...new Set(sceneTags)], characters, effects, environment: env, negative: NEGATIVE };
 }

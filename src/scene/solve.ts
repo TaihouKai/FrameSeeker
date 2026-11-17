@@ -265,7 +265,8 @@ export function solve(scene: Scene): Solved {
   // --- checks ---
   for (const a of actors.values()) {
     const feet = lerp(a.points[KP.rAnkle], a.points[KP.lAnkle], 0.5);
-    for (const s of structures.values()) if (s.prims.some((p) => p.kind === 'box' && insideBox(p, add(feet, [0, 0.3, 0])))) throw new Error(`actor "${a.id}" stands inside structure "${s.id}"`);
+    // (a glass one is there to hold someone: a tank, a capsule)
+    for (const s of structures.values()) if (s.prims.some((p) => p.kind === 'box' && !p.glass && insideBox(p, add(feet, [0, 0.3, 0])))) throw new Error(`actor "${a.id}" stands inside structure "${s.id}"`);
   }
 
   const world: World = { groundY: 0, prims: [...[...actors.values()].flatMap((a) => a.prims), ...[...structures.values()].flatMap((s) => s.prims)] };
@@ -306,7 +307,8 @@ function bodyPrims(a: SolvedActor): Prim[] {
 function buildStructure(s: Structure, at: V3, yaw: number): SolvedStructure {
   const sz = s.size || {};
   const prims: Prim[] = [];
-  const box = (c: V3, half: V3, thin = false): Prim => ({ kind: 'box', c, half, yaw, owner: s.id, role: 'structure', thin });
+  const glass = s.glass ? { glass: true } : {};
+  const box = (c: V3, half: V3, thin = false): Prim => ({ kind: 'box', c, half, yaw, owner: s.id, role: 'structure', thin, ...glass });
   const rot = (x: number, y: number, z: number): V3 => {
     const c = Math.cos(yaw), sn = Math.sin(yaw);
     return [at[0] + x * c + z * sn, at[1] + y, at[2] - x * sn + z * c];
@@ -340,6 +342,14 @@ function buildStructure(s: Structure, at: V3, yaw: number): SolvedStructure {
       break;
     }
     default: height = sz.height ?? 2; main = box(rot(0, height / 2, 0), [(sz.width ?? 2) / 2, height / 2, (sz.depth ?? 2) / 2]) as typeof main; prims.push(main);
+  }
+  // an upright cylinder (flat ends) or a sphere in place of the box
+  if ((s.shape === 'cylinder' || s.shape === 'sphere') && prims.includes(main)) {
+    const r = Math.min(main.half[0], main.half[2]), base = rot(0, main.c[1] - at[1] - main.half[1], 0);
+    const shaped: Prim = s.shape === 'sphere'
+      ? { kind: 'sphere', c: main.c, r: Math.min(r, main.half[1]), owner: s.id, role: 'structure', ...glass }
+      : { kind: 'capsule', a: base, b: add(base, [0, 2 * main.half[1], 0]), r, flat: true, owner: s.id, role: 'structure', ...glass };
+    prims.splice(prims.indexOf(main), 1, shaped);
   }
   return { id: s.id, kind: s.kind, pos: at, yaw, front: yawDir(yaw), box: { c: main.c, half: main.half, yaw }, height, prims };
 }

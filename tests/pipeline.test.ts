@@ -4,6 +4,7 @@ import { runScene } from '../src/pipeline.ts';
 import { countTags, novelai, NotImplemented, promptOf, viewTags } from '../src/generate/index.ts';
 import { realize, type Scene } from '../src/scene/index.ts';
 import { maps, shoot } from '../src/camera/index.ts';
+import { cast, rayPrim } from '../src/shared/geom.ts';
 
 const scene = JSON.parse(readFileSync('scenes/classroom-talk.json', 'utf8')) as Scene;
 
@@ -65,6 +66,25 @@ describe('pipeline: scene → camera → generate', () => {
     // the description ("…evening light through the windows") stays out of the walls
     for (const e of p.environment) expect(e.tags.join(' ')).not.toContain(room.place.description.split(',')[0]);
     expect(p.environment.find((e) => e.id === 'env-wall')?.tags ?? ['wall']).not.toContain('window');
+  });
+
+  it('PL8 glass: rays pass it, a person inside stands; a cylinder has flat ends; its region and depth show it', () => {
+    const lab = JSON.parse(readFileSync('scenes/lab-tanks.json', 'utf8')) as Scene;
+    const w = realize(lab);
+    const tank = w.world.prims.find((p) => p.owner === 'tank2')!;
+    expect(tank.glass).toBe(true);
+    expect(tank.kind === 'capsule' && tank.flat).toBe(true);
+    // straight down onto the top of a 2.6 m tank: the flat end at 2.6 m (a round cap would be higher at the centre)
+    const c = tank.kind === 'capsule' ? tank.b : [0, 0, 0] as const;
+    const h = rayPrim([c[0], 5, c[2]], [0, -1, 0], tank);
+    expect(h!.t).toBeCloseTo(5 - 2.6, 3);
+    // rays pass glass
+    expect(cast({ groundY: -1e9, prims: [tank] }, [c[0], 5, c[2]], [0, -1, 0], 10)).toBeNull();
+    // a person in a glass capsule is allowed (the solver refuses one inside a solid thing)
+    const ward = JSON.parse(readFileSync('scenes/ward-pods.json', 'utf8')) as Scene;
+    expect(() => realize(ward)).not.toThrow();
+    const s = shoot(w, { n: 600, refine: 3, iters: 6, k: 1 }).shots[0], m = maps(w, s.cam, { scale: 0.25 });
+    expect(m.regions.some((r) => r.kind === 'structure' && r.glass)).toBe(true);
   });
 
   it('PL3 the prompt puts the focus first and always keeps nsfw negative', () => {

@@ -12,10 +12,10 @@ export function vocabulary(): string {
     'POSES (name: what it is):',
     ...[...POSES.values()].map((p) => `- ${p.name}: ${p.description}`),
     '',
-    `STRUCTURE KINDS: ${STRUCTURE_KINDS.join(', ')}. size: {floors} for buildings (one floor = 3.5 m), else {height, width, depth} in metres. truss = a steel gantry spanning a street (width = span, height = clearance); bridge = a footbridge or overpass (same).`,
+    `STRUCTURE KINDS: ${STRUCTURE_KINDS.join(', ')}. size: {floors} for buildings (one floor = 3.5 m), else {height, width, depth} in metres. truss = a steel gantry spanning a street (width = span, height = clearance); bridge = a footbridge or overpass (same). Anything else is "other" with its size, "shape": "box" | "cylinder" (a tank, a pod, a column) | "sphere", and "glass": true when it is see-through (a glass tank someone floats in); its "prompt" says what it is.`,
     `EFFECT KINDS: lines ${EFFECT_KINDS.line.join(', ')} ({"from": anchor, "to": anchor or {"toward":[x,y,z],"length":m}, "grazes"?: {"actor","part":"head|shoulder|side","side":"left|right","clearance":m}}); volumes ${EFFECT_KINDS.volume.join(', ')} ({"at": anchor, "radius": m}); damage ${EFFECT_KINDS.damage.join(', ')} ({"target": structure id, "floors"?: [from, to]}). Every effect has "prompt": English image tags.`,
     'ANCHORS: "<actor>.head|eyes|chest|right_hand|left_hand|feet|center", "<structure>.top|center|base|floor_<n>".',
     'PLACEMENT (one form, metres): {"at":[x,z]} | {"from":id,"distance":m,"bearing":"front|behind|left|right"} (relative to where that one faces) | {"behind":id,"seen_from":id,"distance":m} (on the line from seen_from through behind, beyond it) | {"on_line":[id,id],"at_fraction":0..1} | {"on":structure id,"part":"top|roof_edge","offset":m along its width}. Optional on any: "elevation" (metres above ground), "side_offset" (metres to the right of the placement\'s direction).',
-    `PLACE KINDS: ${PLACE_KINDS.join(', ')}.`,
+    `PLACE KINDS: ${PLACE_KINDS.join(', ')}. Indoors (room, classroom, corridor) the place may give width, length and height in metres; a room is bare walls, so what is in it (machines, beds, tanks, windows) are structures.`,
   ].join('\n');
 }

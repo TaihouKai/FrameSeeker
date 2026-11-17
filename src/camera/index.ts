@@ -63,7 +63,7 @@ export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?
     pose: openposeOf(w.solved, w.world, cam, g.width, g.height),
     regions,
     people: [...w.solved.actors.values()].map((a) => ({ id: a.id, faceAngle: faceAngleOf(a, cam), joints: keypoints(a, w.world, cam, 1, 1) })),
-    hint: regions.some((g) => g.kind !== 'person' && g.kind !== 'environment') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
+    hint: regions.some((g) => g.kind === 'line' || g.kind === 'volume' || g.kind === 'damage') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
   };
 }
 

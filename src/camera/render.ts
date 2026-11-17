@@ -1,6 +1,6 @@
 // The gray-box preview for people to look at (CPU ray casting). The ControlNet maps are in maps.ts.
 import { add, dist, dot, lerp, mul, norm, sub, type V3 } from '../shared/vec.ts';
-import { cast, inside, raySphere, type World } from '../shared/geom.ts';
+import { cast, inside, rayPrim, raySphere, type World } from '../shared/geom.ts';
 import { frame, project, ray, SIZE, type Cam } from './camera.ts';
 import { BONES } from '../scene/poses.ts';
 import type { Solved } from '../scene/solve.ts';
@@ -26,6 +26,7 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5, opts: { hint
   const colour = (id: string) => ACTOR_COLOURS[order.indexOf(id) % ACTOR_COLOURS.length];
   const damages = [...s.damages.values()];
   const volumes = [...s.volumes.values()];
+  const glass = w.prims.filter((p) => p.glass);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const d = ray(f, (x + 0.5) / W, (y + 0.5) / H);
     const hit = cast(w, cam.pos, d);
@@ -47,6 +48,8 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5, opts: { hint
       // building floors: a faint line every storey on structures
       if (hit.prim && hit.prim.role !== 'actor' && Math.abs(hit.normal[1]) < 0.5 && (p[1] % 3.5 + 3.5) % 3.5 < 0.12) c = blend(c, [60, 60, 70], 0.5);
     }
+    // glass (rays pass it): a pale tint wherever it stands in front, so people can see it here
+    for (const p of glass) { const h = rayPrim(cam.pos, d, p); if (h && h.t < depth[y * W + x]) c = blend(c, [170, 225, 235], 0.3); }
     for (const v of volumes) {
       const h = raySphere(cam.pos, d, v.c, v.r);
       if (h && h.t < depth[y * W + x]) c = blend(c, [255, 230, 120], 0.45);

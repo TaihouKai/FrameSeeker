@@ -285,6 +285,15 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     const b = box2(a);
     if (b) worst = Math.max(worst, coverRatio(fb, b));
   }
+  // glass nearer than the subject covers it too (seen through, but through a pane: a capsule filling the frame);
+  // not the glass the subject is in (someone in a tank is seen through their own tank)
+  if (fb) for (const p of w.prims) {
+    if (!p.glass || inside(p, ctx.focus.head, 0.1)) continue;
+    const cs = corners(p);
+    if (dist(cam.pos, cs.reduce((x, y) => add(x, mul(y, 1 / cs.length)), [0, 0, 0] as V3)) >= focusDist) continue;
+    const b = bbox(cs.map((q) => project(f, q)).filter(Boolean) as { u: number; v: number }[]);
+    if (b) worst = Math.max(worst, coverRatio(fb, b));
+  }
   terms.overlap = worst <= 0.3 ? 1 : Math.max(0, 1 - (worst - 0.3) / 0.7);
   // tall payoffs suit portrait, flat crossings suit landscape
   terms.aspect = big ? (cam.aspect === 'portrait' ? 1 : 0.4) : ctx.line && theta < 30 ? (cam.aspect !== 'portrait' ? 1 : 0.4) : 0.7;

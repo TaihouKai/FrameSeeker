@@ -8,7 +8,9 @@ export type Intent = 'scale' | 'action' | 'emotion' | 'reveal';
 
 export interface Scene {
   version: 1;
-  place: { kind: PlaceKind; description: string; width?: number };
+  /** width: a street's width; indoors the room's width, length its length, height its ceiling (metres) */
+  /** tags: image-board words naming the place itself (laboratory, hospital room), for its walls and floor */
+  place: { kind: PlaceKind; description: string; tags?: string[]; width?: number; length?: number; height?: number };
   time: { of_day: 'dawn' | 'morning' | 'midday' | 'afternoon' | 'sunset' | 'dusk' | 'night'; weather?: 'clear' | 'cloudy' | 'rain' | 'snow' | 'fog' };
   actors: Actor[];
   structures: Structure[];
@@ -38,6 +40,10 @@ export interface Structure {
   id: string;
   kind: StructureKind;
   size?: { floors?: number; height?: number; width?: number; depth?: number };
+  /** for kind 'other' (and crate, pillar): a box (default), an upright cylinder (a tank, a pod, a column) or a sphere */
+  shape?: 'box' | 'cylinder' | 'sphere';
+  /** see-through (a glass tank, a window pane): who stands inside or behind it stays visible */
+  glass?: boolean;
   place: Placement;
   /** which way its front (+Z side) faces: an id, else towards whoever places it ("seen_from"/"from"), else the world's +Z */
   facing?: string;

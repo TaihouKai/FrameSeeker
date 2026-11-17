@@ -100,6 +100,7 @@ const P: Pose[] = [
     [KP.rAnkle]: [0.06, 0.06, -0.04], [KP.lAnkle]: [-0.06, 0.08, -0.06], [KP.rWrist]: [0.22, 0.52, 0.03], [KP.lWrist]: [-0.22, 0.52, 0.03],
   }) },
   { name: 'fall_back', description: 'knocked off balance, falling backwards', aim: null, points: tipBack(make({ [KP.rWrist]: [0.25, 0.7, 0.1], [KP.lWrist]: [-0.25, 0.7, 0.1] }), 0.6) },
+  { name: 'lie', description: 'lying on the back, asleep or still (on a bed or in a pod: give its elevation; the head is behind where they face)', aim: null, points: tipBack(make({}), Math.PI / 2) },
 ];
 
 export const POSES: ReadonlyMap<string, Pose> = new Map(P.map((p) => [p.name, p]));

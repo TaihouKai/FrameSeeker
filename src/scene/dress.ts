@@ -61,27 +61,34 @@ export function dress(s: Solved): World {
     keep.push({ kind: 'capsule', a: [mast[0], 0, mast[2]], b: [mast[0], 12, mast[2]], r: 0.15, owner: `dress${keep.length}`, role: 'dressing', thin: true });
     for (let k = 0; k < 4; k++) { const c = add(centre, add(mul(axis, (rand() - 0.5) * 2 * (r - 3)), mul(across, (rand() - 0.5) * 2 * (r - 3)))); keep.push(box([c[0], 0.6, c[2]], [0.9, 0.6, 0.6], yawAlong)); }
   } else if (kind === 'room' || kind === 'classroom' || kind === 'corridor') {
-    const hx = kind === 'corridor' ? 1.6 : 4.5, hz = kind === 'corridor' ? 15 : 3.5, h = 3;
+    const pl = s.scene.place;
+    const hx = (pl.width ?? (kind === 'corridor' ? 3.2 : 9)) / 2, hz = (pl.length ?? (kind === 'corridor' ? 30 : 7)) / 2, h = pl.height ?? 3;
     const c = centre;
-    const wall = (dx: number, dz: number, ax: number, az: number) => { const p = add(c, add(mul(axis, dz), mul(across, dx))); keep.push(box([p[0], h / 2, p[2]], [ax, h / 2, az], yawAlong, false, 'wall')); };
-    // window wall on one side: low wall + top band (windows between)
-    const wp = add(c, mul(across, hx));
-    keep.push(box([wp[0], 0.45, wp[2]], [0.12, 0.45, hz], yawAlong, false, 'wall'), box([wp[0], h - 0.3, wp[2]], [0.12, 0.3, hz], yawAlong, false, 'wall'));
-    // mullions: real windows have frames (a bare opening let the image model invent them, frames inside frames)
-    for (let z = -hz + 1.8; z < hz - 0.5; z += 1.8) {
-      const m = add(wp, mul(axis, z));
-      keep.push(box([m[0], (0.9 + h - 0.6) / 2, m[2]], [0.1, (h - 0.6 - 0.9) / 2, 0.05], yawAlong, true, 'window'));
-    }
+    // the shell (walls, ceiling, floor) is always kept: it is the place itself, and the rough overlap test below
+    // took the whole ceiling for standing in a tank
+    const shell = (p: Prim) => base.push({ ...p, owner: `room-${base.length}` });
+    const wall = (dx: number, dz: number, ax: number, az: number) => { const p = add(c, add(mul(axis, dz), mul(across, dx))); shell(box([p[0], h / 2, p[2]], [ax, h / 2, az], yawAlong, false, 'wall')); };
+    // walls only: a room's windows, furniture and machines are the scene's own (its structures). A classroom has a
+    // window wall on one side: low wall + top band, mullions between (a bare opening let the image model invent
+    // frames inside frames)
+    if (kind === 'classroom') {
+      const wp = add(c, mul(across, hx));
+      shell(box([wp[0], 0.45, wp[2]], [0.12, 0.45, hz], yawAlong, false, 'wall')); shell(box([wp[0], h - 0.3, wp[2]], [0.12, 0.3, hz], yawAlong, false, 'wall'));
+      for (let z = -hz + 1.8; z < hz - 0.5; z += 1.8) {
+        const m = add(wp, mul(axis, z));
+        keep.push(box([m[0], (0.9 + h - 0.6) / 2, m[2]], [0.1, (h - 0.6 - 0.9) / 2, 0.05], yawAlong, true, 'window'));
+      }
+    } else wall(hx, 0, 0.12, hz);
     wall(-hx, 0, 0.12, hz); wall(0, hz, hx, 0.12); wall(0, -hz, hx, 0.12);
-    keep.push(box([c[0], h + 0.1, c[2]], [hx + 4, 0.1, hz + 4], yawAlong, false, 'ceiling'));
+    shell(box([c[0], h + 0.1, c[2]], [hx + 4, 0.1, hz + 4], yawAlong, false, 'ceiling'));
     // the floor, inside the walls: what is seen through the windows is then outside (ground or sky)
-    base.push({ ...box([c[0], -0.049, c[2]], [hx, 0.05, hz], yawAlong, false, 'floor'), owner: 'room-floor' });
+    shell(box([c[0], -0.049, c[2]], [hx, 0.05, hz], yawAlong, false, 'floor'));
     if (kind === 'classroom') {
       // a blackboard on the front wall, desks in rows facing it
       const bb = add(c, mul(axis, -hz + 0.14));
       keep.push(box([bb[0], 1.45, bb[2]], [2.5, 0.6, 0.02], yawAlong, true, 'blackboard'));
       for (const dz of [-1.2, 0, 1.2, 2.4]) for (const dx of [-3, -1.5, 0, 1.5, 3]) { const p = add(c, add(mul(axis, dz), mul(across, dx))); keep.push(box([p[0], 0.38, p[2]], [0.3, 0.38, 0.25], yawAlong, false, 'desk')); }
-    } else if (kind === 'room') for (let k = 0; k < 6; k++) { const p = add(c, add(mul(axis, (rand() - 0.5) * 2 * (hz - 1)), mul(across, (rand() - 0.5) * 2 * (hx - 1.2)))); keep.push(box([p[0], 0.38, p[2]], [0.6, 0.38, 0.3], yawAlong, false, 'desk')); }
+    }
   } else if (kind === 'forest' || kind === 'field') {
     const n = kind === 'forest' ? 60 : 8;
     for (let k = 0; k < n; k++) {

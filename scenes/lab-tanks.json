@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "place": { "kind": "room", "description": "underground laboratory, dim, rows of glass tanks", "tags": ["laboratory", "underground", "science fiction"], "width": 12, "length": 18, "height": 4 },
+ "time": { "of_day": "night" },
+ "actors": [
+  { "id": "researcher", "height": 1.62, "pose": "stand", "facing": "tank2", "place": { "at": [0, 0] },
+    "prompt": { "look": ["1girl", "long hair", "glasses"], "outfit": ["lab coat"], "expression": ["serious"] } },
+  { "id": "assistant", "height": 1.75, "pose": "arms_crossed", "facing": "researcher", "place": { "from": "researcher", "distance": 2.2, "bearing": "behind" },
+    "prompt": { "look": ["1boy", "short hair"], "outfit": ["lab coat"], "expression": ["worried"] } }
+ ],
+ "structures": [
+  { "id": "tank1", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [-2.5, -4] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] },
+  { "id": "tank2", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [-2.5, 0] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] },
+  { "id": "tank3", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [-2.5, 4] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] },
+  { "id": "tank4", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [2.5, -4] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] },
+  { "id": "tank5", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [2.5, 0] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] },
+  { "id": "tank6", "kind": "other", "shape": "cylinder", "glass": true, "size": { "height": 2.6, "width": 1.2, "depth": 1.2 }, "place": { "at": [2.5, 4] }, "prompt": ["glass tank", "glowing liquid", "green light", "bubbles"] }
+ ],
+ "effects": [],
+ "moment": { "focus": "researcher", "intent": "reveal", "must_show": ["tank2"] }
+}
