@@ -66,12 +66,16 @@ Each shot comes out as a gray-box preview, depth, line art, pose, region masks a
 
 ## Generation (phase 6)
 
- sends each shot to a ComfyUI server through its standard HTTP API (upload, queue, poll, download),
+`--generator comfy` sends each shot to a ComfyUI server through its standard HTTP API (upload, queue, poll, download),
 so it works with a local ComfyUI, RunPod, or a hosted service that keeps the API. The workflow uses core nodes only:
 an SDXL checkpoint (optionally v-prediction), ControlNets for depth, line art and pose (strengths and step ranges in
-), and each person's tags inside their mask. Configuration by environment:
+`src/generate/workflow.ts`), and each person's tags inside their mask. Configuration by environment:
 
-\
+```
+COMFY_URL=http://127.0.0.1:8188   COMFY_CHECKPOINT=<sdxl>.safetensors   [COMFY_VPRED=1]
+COMFY_CN_DEPTH=<...>   COMFY_CN_LINEART=<...>   COMFY_CN_POSE=<...>   [COMFY_HEADERS='{"Authorization":"Bearer ..."}']
+```
+
 Without a server the pipeline still writes the maps and prompts and notes that nothing was generated.
 
 ## Status
