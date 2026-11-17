@@ -141,6 +141,8 @@ export interface Evaluation {
   terms: Partial<Record<Term, number>>;
   /** measurements, for reading the result */
   info: Record<string, number>;
+  /** each preference's score, when preferences were given (camera/index.ts) */
+  prefs?: Record<string, number>;
 }
 
 /** 0 below a, rising to 1 at b, 1 to c, falling to 0 at d. */

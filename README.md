@@ -36,9 +36,46 @@ scored once with the scorer frozen beforehand (the latest two with the version o
 
 Details, the tuning episodes, and the caveats are in [Evaluation](#evaluation).
 
-**Contents:** [How it works](#how-it-works) · [Gallery](#gallery) · [Architecture](#architecture) ·
-[The camera scorer](#the-camera-scorer) · [Evaluation](#evaluation) · [Rendering adapters](#rendering-adapters) ·
-[Run](#run)
+**Contents:** [Composition and intent](#composition-and-intent) · [How it works](#how-it-works) ·
+[Gallery](#gallery) · [Architecture](#architecture) · [The camera scorer](#the-camera-scorer) ·
+[Evaluation](#evaluation) · [Rendering adapters](#rendering-adapters) · [Run](#run)
+
+---
+
+## Composition and intent
+
+The project's central design decision, and the place to start a discussion of it. Two questions are kept apart:
+
+- **Composition**: is the frame well made? How the things in it are arranged so the picture follows photographic
+  practice. This is what the camera scorer measures, against what directors do.
+- **Cinematographic intent**: what is the shot for? What must the viewer notice, understand, feel?
+
+Every device a film has (viewpoint, frontality, a high or low angle, lighting, a vanishing point) is a way of
+serving an intent. Without the intent stated, each new feature is a patch for a symptom: back shots scored low, a
+gaze feature was built to explain them, and it found no clean signal, because a back shot is right when the shot is
+about what the person sees and wrong when it is about their face. The work on automatic cinematography makes the same
+split (Jhala & Young 2005: a shot is a communicative act; Lai, Wu, Christie et al. 2014: communicative goals →
+techniques → shots; *Look-Before-Move* 2026: an observation contract before the viewpoint search).
+
+So FrameSeeker has three layers, with the intent in a module of its own (`src/intent/`):
+
+```
+story ──► INTENT ──────────► DEVICES ─────────────► COMPOSITION ──► camera
+          what the viewer     how films convey it     is the frame
+          must understand     (low angle for power,   well made?
+          (face, sees,        point of view for       (the scorer)
+          power, alone, …)    what someone sees, …)
+```
+
+An intent is a small structured vocabulary an LLM writes from the story; devices turn it, deterministically, into
+preferences over what a camera shows; the composition scorer is unchanged. The same scene, different intents, the
+search's best camera:
+
+![classroom: no intent, a holds power, b vulnerable, together](docs/intent/classroom.jpg)
+![lab: no intent, she sees the tank, her face](docs/intent/lab.jpg)
+
+The full draft (the vocabulary and its sources, how the old `moment` fits, what is open, and where the gaze work
+stands) is in [`docs/INTENT.md`](docs/INTENT.md).
 
 ---
 
@@ -59,7 +96,9 @@ flowchart LR
   subgraph generate["generate/ — phase 6"]
     P6["6 · render<br/>(a replaceable adapter)"]
   end
+  INT["intent/<br/>what the shot is for → devices"]
   P3 -- "World3D" --> P4
+  INT -. "preferences" .-> P4
   P5 -- "Shot + ShotMaps" --> P6
   P6 --> I([picture])
   P4 -. "rate(world): injected, keeps a staging<br/>operation only if the best shot improves" .-> P2
@@ -153,6 +192,7 @@ flowchart BT
   shared["shared/<br/>vectors · ray casting · images · skeleton format"]
   scene["scene/<br/>phases 1–3"]
   camera["camera/<br/>phases 4–5"]
+  intent["intent/<br/>what a shot is for"]
   generate["generate/<br/>phase 6"]
   evalm["eval/<br/>scorer vs. films"]
   pipeline["pipeline.ts<br/>wires 1 → 6"]
@@ -160,11 +200,14 @@ flowchart BT
   scene --> shared
   camera --> scene
   camera --> shared
+  intent --> camera
+  intent --> scene
   generate --> camera
   generate --> scene
   evalm --> camera
   evalm --> scene
   pipeline --> generate
+  pipeline --> intent
   pipeline --> camera
   pipeline --> scene
   cli --> pipeline
@@ -177,7 +220,7 @@ An arrow means "uses". Two rules, checked by `tests/architecture.test.ts` on eve
    so one module can be improved (or replaced) without touching the others. (`shared/` is a library of independent
    files and may be imported file by file.)
 2. **Dependencies point down only.** The scene never knows the camera exists; the camera never knows how its maps
-   are rendered.
+   are rendered, nor that intents exist: it measures what a camera shows and takes preferences from outside.
 
 The one place the scene needs the camera, staging (phase 2 asks "does this set piece make a better shot?"), the
 camera's `rate` is passed in as a function by the pipeline, so the dependency still points down.
@@ -189,6 +232,8 @@ camera's `rate` is passed in as a function by the pipeline, so the dependency st
 | story → scene | the text, an optional focus ("draw the moment when…"), people's descriptions | `buildScenes(text, …)` |
 | scene → camera | the solved world: the scene JSON, its exact geometry (actors' joints, structures, beams, blasts, damage), the ray-castable primitives | `World3D` (scene/index.ts) |
 | camera → scene, staging only | the best shot's score and terms, through an injected function | `Rating` (scene/index.ts) |
+| camera → intent | what a camera shows, measured: each person's and thing's share in frame and seen, place, size; each person's face angle, the camera's height against their eyes, whether what they look at is in frame | `View` (camera/view.ts) |
+| intent → camera | the shot's intent as preferences, each folded into the score with a weight | `Preference` (camera/view.ts), from `preferences(intent)` |
 | camera → generate | a shot (camera, score, measurements) and its maps (images, region masks, planned people) | `Shot`, `ShotMaps` (camera/index.ts) |
 | generate → caller | the picture and whatever the renderer reports | `GenerateResult` (generate/types.ts) |
 | scene, camera → eval | `realize`; `scorer(world, objective)`: score a camera, draw the search's random cameras, search; camera geometry | camera/index.ts |
@@ -205,10 +250,14 @@ to the LLM, written from the code (`vocab.ts`), a chat client (`chat.ts`) · `ju
 only where it measurably helps · `solve.ts` relations → exact geometry · `poses.ts` the pose library ·
 `dress.ts` dressing by the kind of place (streets of buildings, a room's shell, a classroom's blackboard and desks).
 
-**`camera/`** — phases 4–5. Public: `shoot`, `rate`, `rateCamera`, `scorer`, `maps`, `preview`, camera geometry.
-`camera.ts` the pinhole camera and projection · `search.ts` sampling and local refinement · `score.ts` hard
-constraints and score terms · `composition2d.ts` picture-plane composition (Liu et al. 2010) · `maps.ts` the
-structure maps · `render.ts` the gray-box preview for people.
+**`camera/`** — phases 4–5. Public: `shoot`, `rate`, `rateCamera`, `scorer`, `measure`, `maps`, `preview`, camera
+geometry. `camera.ts` the pinhole camera and projection · `search.ts` sampling and local refinement · `score.ts` hard
+constraints and score terms · `composition2d.ts` picture-plane composition (Liu et al. 2010) · `view.ts` what a camera
+shows, and preferences from outside · `maps.ts` the structure maps · `render.ts` the gray-box preview for people.
+
+**`intent/`** — what a shot is for. Public: `preferences`, `applyIntent`, `extractIntent`, the vocabulary.
+`types.ts` the intents · `devices.ts` the ways films convey each, as preferences, with sources · `extract.ts` the
+intent from a story (LLM, checked against the scene).
 
 **`generate/`** — phase 6. Public: the renderer contract (`Generator`, `GenerateInput`, `GenerateResult`).
 
@@ -239,7 +288,8 @@ terms in [0, 1] combined by a weighted geometric mean, each from a published rul
 Rules the data did not support are left out. "Never crop the subject at a joint" (Katz) was a term until the
 reference shots showed, within each shot scale, a joint at the frame's edge as often as random cameras do.
 
-The weights depend on the shot's intent (scale, action, emotion, reveal).
+The weights depend on the scene's rough shot type (scale, action, emotion, reveal), the first, coarse form of intent;
+what a shot is for is now the intent layer's job ([Composition and intent](#composition-and-intent)).
 
 ---
 
@@ -310,7 +360,8 @@ that gain is somewhat optimistic; **the current version has no held-out measurem
 - 89 held-out shots from six episodes is a small sample, and every episode is anime.
 - Backs and wide shots stay weak, and the data says why: directors choose them less often than a random camera
   would, so a prior learned from what directors usually do ranks them low. Telling when a back is the right shot
-  (someone looking at what the shot is about) needs information the scene does not carry yet.
+  (someone looking at what the shot is about) is a question of intent, not of composition: see
+  [Composition and intent](#composition-and-intent).
 - "Top 3" is a harsh measure: there is usually more than one good camera, and the search's best is often a
   different, equally valid one (GATE: 11 / 15 in the top 5%, 1 / 15 in the top 3).
 - Other known weak spots: the shot scale of action scenes; a person lying down can be "visible" from a camera that
@@ -366,7 +417,7 @@ npm run frameseeker -- stories/rooftop-chase.txt      # phases 1–5 from a stor
 |---|---|---|
 | `npm run frameseeker -- <story.txt \| scene.json>` | 1–5 (3–5 from a scene file); 6 with `--generator` | the whole pipeline |
 | `npm run stage -- <story.txt>` | 1–3 | inspecting extraction and staging |
-| `npm run shot -- <scene.json>` | 3–5 | inspecting the camera search: previews, maps, every score term |
+| `npm run shot -- <scene.json> [--intent intent.json]` | 3–5 | inspecting the camera search: previews, maps, every score term (and the intent's devices; examples in `intents/`) |
 | `npm run gallery -- <scene.json ...>` | 3–5 | the gallery above (`docs/gallery/`) |
 | `npm run eval [-- --objective liu\|thirds]` | — | the scorer (or a baseline) against the annotated film frames (local data) |
 | `npm run refs:select` | — | sampling reference frames by the fixed rules (local data) |
@@ -378,5 +429,6 @@ when an effect is in frame. Example scenes are in `scenes/`, example stories in 
 ## Status
 
 Phases 1–5 work end to end and are deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
-adapter is archived. Next: a held-out run of the current scorer on unseen episodes, and the context a back shot
-needs (what the person is looking at).
+adapter is archived. The intent layer has its first version; next: annotating the reference frames' intent from the
+surrounding shots, so the evaluation can ask which device directors choose for a given intent; then a held-out run of
+the current scorer on unseen episodes.

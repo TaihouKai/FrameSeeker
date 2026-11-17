@@ -5,6 +5,8 @@
 // Public surface (other modules import only this file):
 //  - phase 4: shoot (the search), rate (for staging), rateCamera, scorer (the scorer on one world: score a camera,
 //    draw random cameras from the search's prior, search; for evaluating the scorer itself), TERMS
+//  - preferences from outside (e.g. the intent module's devices): measure (what a camera shows: View), Preference;
+//    shoot / scorer take a list and fold each into the score
 //  - phase 5: maps, preview
 //  - camera geometry: frame, project, ray, pitch, inFrame, SIZE, FOCALS
 import type { World3D, Rating } from '../scene/index.ts';
@@ -14,12 +16,14 @@ import { sampler, search, type SearchOpts, type SearchResult } from './search.ts
 import { preview as renderPreview } from './render.ts';
 import { depthOf, faceAngleOf, gbuffer, keypoints, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
 import { frame, pitch, type Cam } from './camera.ts';
+import { measure, samples, type Preference } from './view.ts';
 
 export type { Cam, Aspect, Frame, Projected } from './camera.ts';
 export type { SearchOpts, SearchResult, Candidate } from './search.ts';
 export type { Evaluation, Term } from './score.ts';
 export { SIZE, FOCALS, frame, project, ray, pitch, inFrame } from './camera.ts';
 export { TERMS } from './score.ts';
+export { measure, type View, type ThingView, type ActorView, type Preference } from './view.ts';
 
 export interface Shot {
   cam: Cam;
@@ -28,6 +32,8 @@ export interface Shot {
   terms: Evaluation['terms'];
   /** measurements: camera height, pitch, subject size, face angle, ... */
   info: Record<string, number>;
+  /** each preference's score, when the shot was searched with preferences */
+  prefs?: Record<string, number>;
 }
 
 /**
@@ -55,16 +61,28 @@ export interface Scorer {
  * 'thirds' (the rule of thirds alone) or 'liu' (Liu et al. 2010's whole composition score).
  */
 export type Objective = 'full' | 'thirds' | 'liu';
-export function scorer(w: World3D, objective: Objective = 'full'): Scorer {
+export function scorer(w: World3D, objective: Objective = 'full', prefer: Preference[] = []): Scorer {
   const ctx = context(w.solved, w.world);
   const baseline = objective === 'thirds' ? thirdsOnly : objective === 'liu' ? liuOnly : null;
-  const score = baseline ? (cam: Cam) => baseline(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
+  const base = baseline ? (cam: Cam) => baseline(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
+  const pts = prefer.length ? samples(w) : [];
+  // the composition score (weight 1) and each preference (its own weight), as a weighted geometric mean: a camera
+  // that ignores what the shot is for cannot win on composition alone
+  const score = !prefer.length ? base : (cam: Cam): Evaluation => {
+    const e = base(cam);
+    if (!e.ok) return e;
+    const v = measure(w, cam, pts);
+    let sum = Math.log(Math.max(0.02, e.total)), ws = 1;
+    const prefs: Record<string, number> = {};
+    for (const p of prefer) { const x = Math.max(0, Math.min(1, p.score(v))); prefs[p.name] = x; sum += p.weight * Math.log(Math.max(0.02, x)); ws += p.weight; }
+    return { ...e, total: Math.exp(sum / ws), prefs, info: { ...e.info, composition_total: e.total } };
+  };
   return { evaluate: score, random: (rand, aspects) => sampler(ctx, rand, aspects), search: (opts) => search(ctx, opts, score) };
 }
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */
-export function shoot(w: World3D, opts: SearchOpts = {}): { shots: Shot[]; sampled: number; accepted: number; rejects: Record<string, number> } {
-  const r = scorer(w).search(opts);
+export function shoot(w: World3D, opts: SearchOpts & { prefer?: Preference[] } = {}): { shots: Shot[]; sampled: number; accepted: number; rejects: Record<string, number> } {
+  const r = scorer(w, 'full', opts.prefer).search(opts);
   return { shots: r.candidates.map((c) => toShot(c.cam, c.ev)), sampled: r.sampled, accepted: r.accepted, rejects: r.rejects };
 }
 
@@ -100,5 +118,5 @@ export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?
 }
 
 function toShot(cam: Cam, ev: Evaluation): Shot {
-  return { cam, total: ev.total, terms: ev.terms, info: { ...ev.info, pitch_deg: pitch(frame(cam)) * 180 / Math.PI } };
+  return { cam, total: ev.total, terms: ev.terms, ...(ev.prefs ? { prefs: ev.prefs } : {}), info: { ...ev.info, pitch_deg: pitch(frame(cam)) * 180 / Math.PI } };
 }

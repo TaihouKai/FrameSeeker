@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 //   shared   — vectors, geometry, images, the skeleton format
 //   scene    — phases 1–3: text → scene JSON → 3D world
 //   camera   — phases 4–5: camera search and scoring, structure maps
+//   intent   — what a shot must make the viewer understand, and the devices that convey it (camera preferences)
 //   generate — phase 6: structure maps → picture
 //   eval     — the scorer against reference shots from films
 //   (root)   — pipeline.ts wires scene → camera → generate;  cli — the commands
@@ -14,10 +15,11 @@ const MAY_USE: Record<string, string[]> = {
   shared: [],
   scene: ['shared'],
   camera: ['shared', 'scene'],
+  intent: ['shared', 'scene', 'camera'],
   generate: ['shared', 'scene', 'camera'],
   eval: ['shared', 'scene', 'camera'],
-  root: ['shared', 'scene', 'camera', 'generate'],
-  cli: ['shared', 'scene', 'camera', 'generate', 'eval', 'root'],
+  root: ['shared', 'scene', 'camera', 'intent', 'generate'],
+  cli: ['shared', 'scene', 'camera', 'intent', 'generate', 'eval', 'root'],
 };
 
 const SRC = resolve('src');
