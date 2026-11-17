@@ -54,6 +54,19 @@ describe('pipeline: scene → camera → generate', () => {
     expect(m.hint).not.toBeNull();
   });
 
+  it('PL7 indoors the set\'s parts are regions of their own, named from their labels and not from the description', () => {
+    const room = { ...scene, place: { ...scene.place, kind: 'classroom' as const } };
+    const w = realize(room), s = shoot(w, { n: 600, refine: 3, iters: 6, k: 1 }).shots[0], m = maps(w, s.cam, { scale: 0.25 });
+    const env = m.regions.filter((r) => r.kind === 'environment').map((r) => r.id);
+    expect(env.length).toBeGreaterThan(0);
+    expect(env.every((id) => /^env-(wall|ceiling|floor|desk|window|blackboard)$/.test(id))).toBe(true);
+    const p = promptOf(room, s, m.people, env);
+    expect(p.environment.map((e) => e.id)).toEqual(env);
+    // the description ("…evening light through the windows") stays out of the walls
+    for (const e of p.environment) expect(e.tags.join(' ')).not.toContain(room.place.description.split(',')[0]);
+    expect(p.environment.find((e) => e.id === 'env-wall')?.tags ?? ['wall']).not.toContain('window');
+  });
+
   it('PL3 the prompt puts the focus first and always keeps nsfw negative', () => {
     const p = promptOf(scene);
     expect(p.characters[0].id).toBe(scene.moment.focus);

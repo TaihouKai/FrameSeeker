@@ -125,7 +125,7 @@ describe('ComfyUI generator', () => {
   });
 
   it('CF3 the graph without ControlNets or people is still complete (a plain text-to-image)', () => {
-    const g = workflow({ models: { checkpoint: 'x', controlnet: {} }, prompt: { scene: ['street'], characters: [], effects: [], negative: ['nsfw'] }, width: 64, height: 64, images: {}, masks: {} });
+    const g = workflow({ models: { checkpoint: 'x', controlnet: {} }, prompt: { scene: ['street'], characters: [], effects: [], environment: [], negative: ['nsfw'] }, width: 64, height: 64, images: {}, masks: {} });
     const kinds = Object.values(g).map((n) => n.class_type).sort();
     expect(kinds).toEqual(['CLIPTextEncode', 'CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSampler', 'SaveImage', 'VAEDecode']);
   });

@@ -12,8 +12,19 @@ export interface Prompt {
   characters: CharacterPrompt[];
   /** one entry per effect (beam, explosion, damage): drawn where its region is, not anywhere in the picture */
   effects: CharacterPrompt[];
+  /** one entry per labelled part of the set in frame (env-wall, env-window, …): words for it alone, from the label */
+  environment: CharacterPrompt[];
   negative: string[];
 }
+
+/**
+ * What each labelled part of the set is called. Only these words, not the scene's free-text description: with the
+ * description ("evening light through the windows") over a gray-box wall, the model drew windows on the wall.
+ */
+export const ENVIRONMENT_TAGS: Record<string, string[]> = {
+  wall: ['wall', 'indoors'], ceiling: ['ceiling', 'indoors'], floor: ['floor', 'indoors'], desk: ['desk', 'indoors'], window: ['window', 'sky', 'outdoors'],
+  blackboard: ['chalkboard', 'indoors'],
+};
 
 export const NEGATIVE = ['nsfw', 'lowres', 'bad anatomy', 'extra limbs', 'text', 'watermark'];
 
@@ -49,7 +60,7 @@ export function viewTags(faceAngle: number | undefined): string[] {
 }
 
 /** people: the shot's planned people (camera maps), for how each person is seen */
-export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceAngle: number }[]): Prompt {
+export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceAngle: number }[], environment?: string[]): Prompt {
   const tags = (xs: (string | undefined)[] | undefined) => (xs ?? []).map((x) => x?.trim()).filter((x): x is string => !!x);
   const focusFirst = [...scene.actors].sort((a, b) => Number(b.id === scene.moment.focus) - Number(a.id === scene.moment.focus));
   const characters = focusFirst.map((a) => {
@@ -71,5 +82,9 @@ export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceA
   ];
   // effects by themselves: in the whole-picture prompt "melting" melted whatever the model chose and the beam was lost
   const effects = scene.effects.map((e) => ({ id: e.id, tags: tags(e.prompt) })).filter((e) => e.tags.length);
-  return { scene: [...new Set(sceneTags)], characters, effects, negative: NEGATIVE };
+  const time = tags([scene.time.of_day, scene.time.weather]);
+  // the kind of place, where the board has a word for it
+  const where = scene.place.kind === 'classroom' ? ['classroom'] : scene.place.kind === 'corridor' ? ['hallway'] : [];
+  const env = (environment ?? []).flatMap((id) => { const t = ENVIRONMENT_TAGS[id.replace(/^env-/, '')]; return t ? [{ id, tags: [...t, ...where, ...time] }] : []; });
+  return { scene: [...new Set(sceneTags)], characters, effects, environment: env, negative: NEGATIVE };
 }

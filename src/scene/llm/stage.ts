@@ -4,7 +4,7 @@
 import { solve } from '../solve.ts';
 import { clear } from '../../shared/geom.ts';
 import { lerp } from '../../shared/vec.ts';
-import type { Scene, Structure } from '../types.ts';
+import { INDOOR_KINDS, type Scene, type Structure } from '../types.ts';
 import { jsonOf, type Chat } from './chat.ts';
 import { STRUCTURE_KINDS, vocabulary } from './vocab.ts';
 import type { Extracted } from './extract.ts';
@@ -71,7 +71,7 @@ export async function propose(chat: Chat, input: { text: string; scene: Extracte
   return (out.plans || []).slice(0, 3).map((p, i) => ({ name: String(p.name || `plan ${i + 1}`), ops: Array.isArray(p.ops) ? p.ops.slice(0, 3) : [] }));
 }
 
-const INDOOR = new Set(['room', 'corridor']);
+const INDOOR = INDOOR_KINDS as ReadonlySet<string>;
 const NOT_INDOORS = new Set(['building', 'tower', 'bridge', 'truss', 'tree', 'rock', 'vehicle']);
 
 export interface Applied { scene: Scene & { origin: Record<string, 'text' | 'staged'> }; accepted: Op[]; refused: { op: Op; why: string }[] }

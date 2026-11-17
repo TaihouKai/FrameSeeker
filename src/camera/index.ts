@@ -55,7 +55,7 @@ export function rate(w: World3D, opts: SearchOpts = { seed: 1, k: 1 }): Rating {
 /** Phase 5: the shot's 2D maps (ControlNet maps at `scale` of the output size, the preview at `previewScale`). */
 export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?: number } = {}): ShotMaps {
   const g = gbuffer(w.world, cam, opts.scale ?? 1);
-  const regions = regionsOf(g, w.solved);
+  const regions = regionsOf(g, w.solved, w.world);
   return {
     preview: preview(w.solved, w.world, cam, opts.previewScale ?? 0.5),
     depth: depthOf(g),
@@ -63,7 +63,7 @@ export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?
     pose: openposeOf(w.solved, w.world, cam, g.width, g.height),
     regions,
     people: [...w.solved.actors.values()].map((a) => ({ id: a.id, faceAngle: faceAngleOf(a, cam), joints: keypoints(a, w.world, cam, 1, 1) })),
-    hint: regions.some((g) => g.kind !== 'person') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
+    hint: regions.some((g) => g.kind !== 'person' && g.kind !== 'environment') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
   };
 }
 

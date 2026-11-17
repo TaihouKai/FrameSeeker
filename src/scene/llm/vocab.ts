@@ -1,10 +1,11 @@
 // The words the models may use, written from the code itself (pose library, kinds, placement forms), so a prompt
 // never drifts from what the solver accepts.
 import { POSES } from '../poses.ts';
+import { PLACE_KINDS } from '../types.ts';
 
 export const STRUCTURE_KINDS = ['building', 'tower', 'wall', 'bridge', 'truss', 'vehicle', 'tree', 'rock', 'crate', 'pillar', 'other'] as const;
 export const EFFECT_KINDS = { line: ['beam', 'lightning', 'projectile', 'slash'], volume: ['explosion', 'shockwave', 'aura', 'barrier'], damage: ['melting', 'burning', 'shattering', 'collapsing'] };
-export const PLACE_KINDS = ['street', 'plaza', 'bridge', 'rooftop', 'room', 'corridor', 'field', 'forest', 'shore', 'other'];
+export { PLACE_KINDS } from '../types.ts';
 
 export function vocabulary(): string {
   return [

@@ -30,7 +30,7 @@ export async function runScene(scene: Scene, opts: RunOpts = {}): Promise<RunRes
   const results: ShotResult[] = [];
   for (const shot of shots) {
     const m = maps(world, shot.cam);
-    const prompt = promptOf(scene, shot, m.people);
+    const prompt = promptOf(scene, shot, m.people, m.regions.filter((r) => r.kind === 'environment').map((r) => r.id));
     let image: Image | null = null, note: string | undefined, check: PoseCheck | undefined, candidates: PoseCheck[] | undefined;
     if (opts.generator) {
       try {

@@ -1,6 +1,6 @@
 {
  "version": 1,
- "place": { "kind": "room", "description": "school classroom after class, evening light through the windows" },
+ "place": { "kind": "classroom", "description": "school classroom after class, evening light through the windows" },
  "time": { "of_day": "afternoon", "weather": "clear" },
  "actors": [
   { "id": "a", "height": 1.65, "pose": "talk", "facing": "b", "place": { "at": [0, 0] }, "prompt": { "look": ["1boy", "short hair", "black hair"], "outfit": ["school uniform"], "expression": ["smile"] } },

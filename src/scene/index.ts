@@ -11,6 +11,7 @@ import type { Chat } from './llm/chat.ts';
 import type { World } from '../shared/geom.ts';
 
 export type * from './types.ts';
+export { INDOOR_KINDS, PLACE_KINDS } from './types.ts';
 export type { Solved, SolvedActor } from './solve.ts';
 export type { Op } from './llm/stage.ts';
 export type { Chat } from './llm/chat.ts';

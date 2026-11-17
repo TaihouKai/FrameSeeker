@@ -1,6 +1,9 @@
 // The scene JSON: relations and rough numbers only; the solver (solve.ts) computes exact geometry.
 
-export type PlaceKind = 'street' | 'plaza' | 'bridge' | 'rooftop' | 'room' | 'corridor' | 'field' | 'forest' | 'shore' | 'other';
+export const PLACE_KINDS = ['street', 'plaza', 'bridge', 'rooftop', 'room', 'classroom', 'corridor', 'field', 'forest', 'shore', 'other'] as const;
+export type PlaceKind = typeof PLACE_KINDS[number];
+/** places with walls and a ceiling (seen past the walls: through a window) */
+export const INDOOR_KINDS: ReadonlySet<PlaceKind> = new Set(['room', 'classroom', 'corridor']);
 export type Intent = 'scale' | 'action' | 'emotion' | 'reveal';
 
 export interface Scene {

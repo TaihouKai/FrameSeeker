@@ -4,7 +4,8 @@ import { add, cross, dot, mul, norm, rotY, sub, type V3 } from './vec.ts';
 /** What a primitive belongs to: the scene's own things are scored; dressing only frames the shot. */
 export type Role = 'actor' | 'structure' | 'dressing';
 
-interface Base { owner: string; role: Role; thin?: boolean }
+/** label: what a dressing piece is (wall, ceiling, window, floor, desk), so the picture's regions can be named */
+interface Base { owner: string; role: Role; thin?: boolean; label?: string }
 export type Prim =
   | (Base & { kind: 'box'; c: V3; half: V3; yaw: number })
   | (Base & { kind: 'capsule'; a: V3; b: V3; r: number })

@@ -12,6 +12,7 @@
 import { add, dist, dot, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, inside, raySphere, type World } from '../shared/geom.ts';
 import type { Image } from '../shared/image.ts';
+import { INDOOR_KINDS } from '../scene/index.ts';
 import type { Solved, SolvedActor } from '../scene/solve.ts';
 import { frame, inFrame, project, ray, SIZE, type Cam, type Frame } from './camera.ts';
 import { KP } from '../scene/poses.ts';
@@ -123,7 +124,8 @@ function outline(mask: Uint8Array, W: number, H: number, out: Uint8Array) {
 
 export interface Region {
   id: string;
-  kind: 'person' | 'line' | 'volume' | 'damage';
+  /** environment: a labelled part of the set (id env-<label>: wall, ceiling, floor, desk, window) */
+  kind: 'person' | 'line' | 'volume' | 'damage' | 'environment';
   /** visible area as a fraction of the frame */
   area: number;
   /** normalized [u0, v0, u1, v1] of the visible pixels */
@@ -151,7 +153,7 @@ function region(id: string, kind: Region['kind'], px: Uint8Array, W: number, H: 
 }
 
 /** The visible part of each person and each effect: masks for regional prompts, and where they are. */
-export function regionsOf(g: GBuffer, s: Solved): Region[] {
+export function regionsOf(g: GBuffer, s: Solved, w: World): Region[] {
   const W = g.width, H = g.height, f = g.frame, cam = f.cam, out: Region[] = [];
   const push = (r: Region | null) => { if (r) out.push(r); };
   for (const a of s.actors.values()) {
@@ -198,6 +200,18 @@ export function regionsOf(g: GBuffer, s: Solved): Region[] {
     }
     push(region(d.id, 'damage', px, W, H));
   }
+  // the set's own parts by their labels; indoors, whatever is seen past the walls (sky, ground) is through a window
+  const indoor = INDOOR_KINDS.has(s.scene.place.kind);
+  const labels = new Map<string, Uint8Array>();
+  for (let i = 0; i < W * H; i++) {
+    if (g.kind[i] === Kind.Actor) continue;
+    const label = g.prim[i] >= 0 ? w.prims[g.prim[i]].label : indoor ? 'window' : undefined;
+    if (!label) continue;
+    let px = labels.get(label);
+    if (!px) labels.set(label, px = new Uint8Array(W * H));
+    px[i] = 255;
+  }
+  for (const [label, px] of labels) push(region(`env-${label}`, 'environment', px, W, H));
   return out;
 }
 

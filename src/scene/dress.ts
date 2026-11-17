@@ -17,7 +17,9 @@ export function dress(s: Solved): World {
   const axis: V3 = span ? span.front : longest ? flat(sub(longest.b, longest.a)) : actors.length > 1 ? flat(sub(actors[1].pos, actors[0].pos)) : [0, 0, 1];
   const across: V3 = [-axis[2], 0, axis[0]];
   const yawAlong = yawTo([0, 0, 0], axis);
-  const box = (c: V3, half: V3, yaw: number, thin = false): Prim => ({ kind: 'box', c, half, yaw, owner: `dress${keep.length}`, role: 'dressing', thin });
+  const box = (c: V3, half: V3, yaw: number, thin = false, label?: string): Prim => ({ kind: 'box', c, half, yaw, owner: `dress${keep.length}`, role: 'dressing', thin, ...(label ? { label } : {}) });
+  // always kept (a room's floor: the actors stand on it)
+  const base: Prim[] = [];
   const scale = Math.max(40, ...[...s.lines.values()].map((l) => Math.sqrt(len2(sub(l.b, l.a)))), ...[...s.structures.values()].map((x) => Math.hypot(x.pos[0] - centre[0], x.pos[2] - centre[2]) + 20));
 
   if (kind === 'street' || kind === 'plaza' || kind === 'bridge') {
@@ -58,21 +60,28 @@ export function dress(s: Solved): World {
     const mast = add(centre, add(mul(axis, r - 3), mul(across, -r + 3)));
     keep.push({ kind: 'capsule', a: [mast[0], 0, mast[2]], b: [mast[0], 12, mast[2]], r: 0.15, owner: `dress${keep.length}`, role: 'dressing', thin: true });
     for (let k = 0; k < 4; k++) { const c = add(centre, add(mul(axis, (rand() - 0.5) * 2 * (r - 3)), mul(across, (rand() - 0.5) * 2 * (r - 3)))); keep.push(box([c[0], 0.6, c[2]], [0.9, 0.6, 0.6], yawAlong)); }
-  } else if (kind === 'room' || kind === 'corridor') {
+  } else if (kind === 'room' || kind === 'classroom' || kind === 'corridor') {
     const hx = kind === 'corridor' ? 1.6 : 4.5, hz = kind === 'corridor' ? 15 : 3.5, h = 3;
     const c = centre;
-    const wall = (dx: number, dz: number, ax: number, az: number) => { const p = add(c, add(mul(axis, dz), mul(across, dx))); keep.push(box([p[0], h / 2, p[2]], [ax, h / 2, az], yawAlong)); };
+    const wall = (dx: number, dz: number, ax: number, az: number) => { const p = add(c, add(mul(axis, dz), mul(across, dx))); keep.push(box([p[0], h / 2, p[2]], [ax, h / 2, az], yawAlong, false, 'wall')); };
     // window wall on one side: low wall + top band (windows between)
     const wp = add(c, mul(across, hx));
-    keep.push(box([wp[0], 0.45, wp[2]], [0.12, 0.45, hz], yawAlong), box([wp[0], h - 0.3, wp[2]], [0.12, 0.3, hz], yawAlong));
+    keep.push(box([wp[0], 0.45, wp[2]], [0.12, 0.45, hz], yawAlong, false, 'wall'), box([wp[0], h - 0.3, wp[2]], [0.12, 0.3, hz], yawAlong, false, 'wall'));
     // mullions: real windows have frames (a bare opening let the image model invent them, frames inside frames)
     for (let z = -hz + 1.8; z < hz - 0.5; z += 1.8) {
       const m = add(wp, mul(axis, z));
-      keep.push(box([m[0], (0.9 + h - 0.6) / 2, m[2]], [0.1, (h - 0.6 - 0.9) / 2, 0.05], yawAlong, true));
+      keep.push(box([m[0], (0.9 + h - 0.6) / 2, m[2]], [0.1, (h - 0.6 - 0.9) / 2, 0.05], yawAlong, true, 'window'));
     }
     wall(-hx, 0, 0.12, hz); wall(0, hz, hx, 0.12); wall(0, -hz, hx, 0.12);
-    keep.push(box([c[0], h + 0.1, c[2]], [hx + 4, 0.1, hz + 4], yawAlong));
-    if (kind === 'room') for (let k = 0; k < 6; k++) { const p = add(c, add(mul(axis, (rand() - 0.5) * 2 * (hz - 1)), mul(across, (rand() - 0.5) * 2 * (hx - 1.2)))); keep.push(box([p[0], 0.38, p[2]], [0.6, 0.38, 0.3], yawAlong)); }
+    keep.push(box([c[0], h + 0.1, c[2]], [hx + 4, 0.1, hz + 4], yawAlong, false, 'ceiling'));
+    // the floor, inside the walls: what is seen through the windows is then outside (ground or sky)
+    base.push({ ...box([c[0], -0.049, c[2]], [hx, 0.05, hz], yawAlong, false, 'floor'), owner: 'room-floor' });
+    if (kind === 'classroom') {
+      // a blackboard on the front wall, desks in rows facing it
+      const bb = add(c, mul(axis, -hz + 0.14));
+      keep.push(box([bb[0], 1.45, bb[2]], [2.5, 0.6, 0.02], yawAlong, true, 'blackboard'));
+      for (const dz of [-1.2, 0, 1.2, 2.4]) for (const dx of [-3, -1.5, 0, 1.5, 3]) { const p = add(c, add(mul(axis, dz), mul(across, dx))); keep.push(box([p[0], 0.38, p[2]], [0.3, 0.38, 0.25], yawAlong, false, 'desk')); }
+    } else if (kind === 'room') for (let k = 0; k < 6; k++) { const p = add(c, add(mul(axis, (rand() - 0.5) * 2 * (hz - 1)), mul(across, (rand() - 0.5) * 2 * (hx - 1.2)))); keep.push(box([p[0], 0.38, p[2]], [0.6, 0.38, 0.3], yawAlong, false, 'desk')); }
   } else if (kind === 'forest' || kind === 'field') {
     const n = kind === 'forest' ? 60 : 8;
     for (let k = 0; k < n; k++) {
@@ -93,7 +102,7 @@ export function dress(s: Solved): World {
     if (keyPoints.length > 1 && !clear({ groundY: -1e9, prims: [p] }, keyPoints[0], keyPoints[keyPoints.length - 1])) return false;
     return true;
   };
-  return { groundY: 0, prims: [...scene.prims, ...keep.filter(ok)] };
+  return { groundY: 0, prims: [...scene.prims, ...keep.filter(ok), ...base] };
 }
 
 const len2 = (d: V3) => d[0] * d[0] + d[1] * d[1] + d[2] * d[2];

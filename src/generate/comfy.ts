@@ -17,6 +17,7 @@ export interface ComfyConfig {
   sampling?: Partial<ComfySampling>;
   control?: WorkflowInput['control'];
   backgroundControl?: WorkflowInput['backgroundControl'];
+  environmentControl?: WorkflowInput['environmentControl'];
   refine?: WorkflowInput['refine'];
   maskGrow?: number;
   /** a shot with effects starts from their colour hint (maps.hint) and redraws this much of it; 1 = from noise (default 0.9) */
@@ -110,11 +111,11 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
     init: maps.hint && hintDenoise < 1 ? await upload(maps.hint, 'hint') : undefined,
   };
   const masks: Record<string, string> = {};
-  const named = new Set([...prompt.characters, ...prompt.effects].map((c) => c.id));
+  const named = new Set([...prompt.characters, ...prompt.effects, ...(prompt.environment ?? [])].map((c) => c.id));
   for (const r of maps.regions) if (named.has(r.id)) masks[r.id] = await upload(r.mask, `mask-${r.id}`);
 
   const graph: Graph = workflow({
-    models: cfg.models, prompt, width: input.width, height: input.height, images, masks, control: cfg.control, backgroundControl: cfg.backgroundControl, refine: cfg.refine, maskGrow: cfg.maskGrow, initDenoise: hintDenoise, batch: candidates, detectPose,
+    models: cfg.models, prompt, width: input.width, height: input.height, images, masks, control: cfg.control, backgroundControl: cfg.backgroundControl, environmentControl: cfg.environmentControl, refine: cfg.refine, maskGrow: cfg.maskGrow, initDenoise: hintDenoise, batch: candidates, detectPose,
     sampling: { ...cfg.sampling, ...(input.seed !== undefined ? { seed: input.seed } : {}) },
   });
   const queued = await (await call('/prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: graph, client_id: tag }) })).json() as { prompt_id?: string; error?: unknown; node_errors?: unknown };

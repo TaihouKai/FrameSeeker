@@ -39,6 +39,16 @@ export const BACKGROUND_CONTROL: Record<'depth' | 'lineart' | 'pose', ControlStr
   pose: { strength: 1, start: 0, end: 0.9 },
 };
 
+/**
+ * The labelled parts of the set (walls, windows, desks): their words now match the gray box, so its depth can hold
+ * them more firmly than the rest of the background.
+ */
+export const ENVIRONMENT_CONTROL: Record<'depth' | 'lineart' | 'pose', ControlStrength> = {
+  depth: { strength: 0.7, start: 0, end: 0.6 },
+  lineart: { strength: 0.45, start: 0, end: 0.5 },
+  pose: { strength: 1, start: 0, end: 0.9 },
+};
+
 export interface WorkflowInput {
   models: ComfyModels;
   prompt: Prompt;
@@ -54,6 +64,8 @@ export interface WorkflowInput {
   control?: Partial<typeof DEFAULT_CONTROL>;
   /** outside the people and effects (default BACKGROUND_CONTROL) */
   backgroundControl?: Partial<typeof BACKGROUND_CONTROL>;
+  /** on the labelled parts of the set (default ENVIRONMENT_CONTROL) */
+  environmentControl?: Partial<typeof ENVIRONMENT_CONTROL>;
   /**
    * redraw each person in their mask with only their own prompt, at this denoise (0 = no). It sharpens who they are
    * (a back's ponytail); it does not change a gender the first pass got wrong (tried up to 0.65)
@@ -127,6 +139,17 @@ export function workflow(input: WorkflowInput): Graph {
     subjects = subjects ? node('ConditioningCombine', { conditioning_1: subjects, conditioning_2: local }) : local;
     union = union ? node('MaskComposite', { destination: union, source: mask, x: 0, y: 0, operation: 'add' }) : mask;
   }
+  // the labelled parts of the set: each its own words, inside its own mask (not grown: walls meet windows exactly)
+  let environment: Ref | null = null;
+  for (const e of input.prompt.environment ?? []) {
+    const maskName = input.masks[e.id];
+    if (!maskName) continue;
+    const mask = node('LoadImageMask', { image: maskName, channel: 'red' });
+    let local = node('ConditioningSetMask', { conditioning: text([...quality, ...e.tags]), mask, strength: 1, set_cond_area: 'default' });
+    [local] = control(local, plainNegative, { ...ENVIRONMENT_CONTROL, ...input.environmentControl });
+    environment = environment ? node('ConditioningCombine', { conditioning_1: environment, conditioning_2: local }) : local;
+    union = union ? node('MaskComposite', { destination: union, source: mask, x: 0, y: 0, operation: 'add' }) : mask;
+  }
   let positive: Ref;
   if (subjects && union) {
     [subjects, negative] = control(subjects, negative, ctl);
@@ -134,6 +157,7 @@ export function workflow(input: WorkflowInput): Graph {
     let background = node('ConditioningSetMask', { conditioning: text([...quality, ...setting]), mask: node('InvertMask', { mask: union }), strength: 1, set_cond_area: 'default' });
     [background] = control(background, plainNegative, { ...BACKGROUND_CONTROL, ...input.backgroundControl });
     positive = node('ConditioningCombine', { conditioning_1: subjects, conditioning_2: background });
+    if (environment) positive = node('ConditioningCombine', { conditioning_1: positive, conditioning_2: environment });
   } else {
     positive = text([...quality, ...input.prompt.scene, ...input.prompt.characters.flatMap((c) => c.tags), ...input.prompt.effects.flatMap((e) => e.tags)]);
     [positive, negative] = control(positive, negative, ctl);

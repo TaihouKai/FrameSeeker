@@ -96,6 +96,11 @@ What the first runs on it taught (details in `src/generate/`):
   Each person's gender is measured too, by an image-board tagger (SmilingWolf's WD SwinV2 v3, on the CPU) on that
   person's own pixels: `1boy` against `1girl`, the same vocabulary the prompts use. Optional: `npm run get-tagger`
   (470 MB) and the optional dependency onnxruntime-node; without them the gender is not checked.
+- **The set says what it is.** Indoors, the gray box's parts carry labels (wall, ceiling, floor, desk,
+  blackboard; past the walls: a window), and each gets its own words in its own region, not the scene's free-text
+  description. With "evening light through the windows" over a gray-box wall, the model either painted windows flat
+  on the wall (depth firm) or knocked the wall out for glass (depth loose). A `classroom` place has a blackboard and
+  rows of desks.
 - **Effects need a colour hint.** A beam is a few pixels in depth and line art; a shot with an effect in frame starts
   from a colour hint (the gray box with the sky of the scene's time of day, people grey) at denoise 0.9.
 
