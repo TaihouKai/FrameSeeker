@@ -1,11 +1,11 @@
 // A pinhole camera with a 35 mm-equivalent focal length; screen coordinates are normalized: u, v in [0, 1], v down.
 import { cross, dot, norm, rotAxis, sub, UP, type V3 } from './vec.ts';
 
-export type Aspect = 'portrait' | 'landscape';
+export type Aspect = 'portrait' | 'landscape' | 'wide';
 export interface Cam { pos: V3; target: V3; /** radians */ roll: number; /** mm, 35 mm equivalent */ focal: number; aspect: Aspect }
 
-/** Output sizes (SDXL-friendly). */
-export const SIZE: Record<Aspect, { w: number; h: number }> = { portrait: { w: 832, h: 1216 }, landscape: { w: 1216, h: 832 } };
+/** Output sizes (SDXL-friendly); wide is the 16:9-like screen of film and TV. */
+export const SIZE: Record<Aspect, { w: number; h: number }> = { portrait: { w: 832, h: 1216 }, landscape: { w: 1216, h: 832 }, wide: { w: 1344, h: 756 } };
 export const FOCALS = [14, 18, 24, 28, 35, 50, 85];
 
 export interface Frame { cam: Cam; F: V3; R: V3; U: V3; /** focal / vertical sensor size */ k: number; /** height / width */ ar: number }
@@ -16,9 +16,9 @@ export function frame(cam: Cam): Frame {
   if (!isFinite(R[0]) || (R[0] === 0 && R[2] === 0)) R = [1, 0, 0];
   let U = cross(R, F);
   if (cam.roll) { R = rotAxis(R, F, cam.roll); U = rotAxis(U, F, cam.roll); }
-  // full-frame sensor 36 x 24 mm: the long side is vertical in portrait
-  const sensorV = cam.aspect === 'portrait' ? 36 : 24;
+  // full-frame sensor 36 x 24 mm: the long side is vertical in portrait; wide crops it to 36 mm across
   const { w, h } = SIZE[cam.aspect];
+  const sensorV = cam.aspect === 'portrait' ? 36 : cam.aspect === 'landscape' ? 24 : 36 * h / w;
   return { cam, F, R, U, k: cam.focal / sensorV, ar: h / w };
 }
 

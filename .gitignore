@@ -1,4 +1,4 @@
 node_modules/
 out/
-refs/
-papers/
+/refs/
+/papers/

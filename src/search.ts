@@ -7,9 +7,10 @@ import { evaluate, type Ctx, type Evaluation } from './score.ts';
 export interface Candidate { cam: Cam; ev: Evaluation }
 export interface SearchResult { candidates: Candidate[]; sampled: number; accepted: number; rejects: Record<string, number> }
 
-export function search(ctx: Ctx, opts: { n?: number; seed?: number; k?: number; refine?: number; iters?: number } = {}): SearchResult {
-  const n = opts.n ?? 4000, k = opts.k ?? 3, refineN = opts.refine ?? 30, iters = opts.iters ?? 60;
-  const rand = rng(opts.seed ?? 1);
+export interface SearchOpts { n?: number; seed?: number; k?: number; refine?: number; iters?: number; /** the formats to try (default portrait and landscape) */ aspects?: Aspect[] }
+
+/** A random camera around the focus, looking somewhere among the things that matter (the search's prior). */
+export function sampler(ctx: Ctx, rand: () => number, aspects: Aspect[] = ['portrait', 'landscape']): () => Cam {
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
   const g = ctx.world.groundY;
   const focus = ctx.focus.head;
@@ -17,6 +18,29 @@ export function search(ctx: Ctx, opts: { n?: number; seed?: number; k?: number; 
   if (ctx.line) keys.push(lerp(ctx.line.a, ctx.line.b, 0.5));
   if (ctx.payoff) keys.push(mul(ctx.payoff.points.reduce((a, b) => add(a, b), [0, 0, 0] as V3), 1 / ctx.payoff.points.length));
   const lowBias = ctx.intent === 'scale' ? 0.7 : 0.5;
+  return () => {
+    const r = Math.exp(Math.log(1.5) + rand() * (Math.log(150) - Math.log(1.5)));
+    const az = rand() * Math.PI * 2;
+    const h = rand() < lowBias ? 0.3 + rand() * 1.7 : 0.3 + rand() * rand() * 45;
+    const pos: V3 = [focus[0] + r * Math.sin(az), g + h, focus[2] + r * Math.cos(az)];
+    const ws = keys.map(() => rand() + 0.05);
+    const wsum = ws.reduce((a, b) => a + b, 0);
+    let target = keys.reduce((acc, p, j) => add(acc, mul(p, ws[j] / wsum)), [0, 0, 0] as V3);
+    target = add(target, mul([gauss(), gauss() * 0.5, gauss()], 0.05 * r));
+    return {
+      pos, target,
+      roll: rand() < 0.8 ? 0 : (rand() < 0.5 ? -1 : 1) * (8 + rand() * 7) * Math.PI / 180,
+      focal: FOCALS[Math.floor(rand() * FOCALS.length)],
+      aspect: aspects[Math.floor(rand() * aspects.length)],
+    };
+  };
+}
+
+export function search(ctx: Ctx, opts: SearchOpts = {}): SearchResult {
+  const n = opts.n ?? 4000, k = opts.k ?? 3, refineN = opts.refine ?? 30, iters = opts.iters ?? 60;
+  const rand = rng(opts.seed ?? 1);
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+  const next = sampler(ctx, rand, opts.aspects);
 
   const rejects: Record<string, number> = {};
   const ok: Candidate[] = [];
@@ -26,22 +50,7 @@ export function search(ctx: Ctx, opts: { n?: number; seed?: number; k?: number; 
     return { cam, ev };
   };
   for (let i = 0; i < n; i++) {
-    const r = Math.exp(Math.log(1.5) + rand() * (Math.log(150) - Math.log(1.5)));
-    const az = rand() * Math.PI * 2;
-    const h = rand() < lowBias ? 0.3 + rand() * 1.7 : 0.3 + rand() * rand() * 45;
-    const pos: V3 = [focus[0] + r * Math.sin(az), g + h, focus[2] + r * Math.cos(az)];
-    // look somewhere among the things that matter
-    const ws = keys.map(() => rand() + 0.05);
-    const wsum = ws.reduce((a, b) => a + b, 0);
-    let target = keys.reduce((acc, p, j) => add(acc, mul(p, ws[j] / wsum)), [0, 0, 0] as V3);
-    target = add(target, mul([gauss(), gauss() * 0.5, gauss()], 0.05 * r));
-    const cam: Cam = {
-      pos, target,
-      roll: rand() < 0.8 ? 0 : (rand() < 0.5 ? -1 : 1) * (8 + rand() * 7) * Math.PI / 180,
-      focal: FOCALS[Math.floor(rand() * FOCALS.length)],
-      aspect: (rand() < 0.5 ? 'portrait' : 'landscape') as Aspect,
-    };
-    const c = consider(cam);
+    const c = consider(next());
     if (c.ev.ok) ok.push(c);
   }
   const accepted = ok.length;

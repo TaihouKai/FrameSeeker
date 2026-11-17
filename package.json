@@ -6,6 +6,8 @@
   "description": "Story moment -> gray-box 3D scene -> composition-scored camera search -> structure maps for ControlNet",
   "scripts": {
     "shot": "node src/cli.ts",
+    "eval": "node src/eval-cli.ts",
+    "refs:select": "node src/refs-select.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

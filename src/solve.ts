@@ -93,7 +93,8 @@ export function solve(scene: Scene): Solved {
   const bearingDir = (refId: string, bearing: NonNullable<Extract<Placement, { from: string }>['bearing']>): V3 => {
     const ref = actorsById.get(refId) ?? structById.get(refId);
     const faceId = ref && 'facing' in ref ? ref.facing : undefined;
-    const base = faceId && pos.has(faceId) && pos.has(refId) ? yawTo(pos.get(refId)!, pos.get(faceId)!) : 0;
+    const base = typeof faceId === 'number' ? faceId * Math.PI / 180
+      : faceId && pos.has(faceId) && pos.has(refId) ? yawTo(pos.get(refId)!, pos.get(faceId)!) : 0;
     const off = bearing === 'front' ? 0 : bearing === 'behind' ? Math.PI : bearing === 'left' ? -Math.PI / 2 : bearing === 'right' ? Math.PI / 2 : (bearing * Math.PI) / 180;
     // yaw +90° turns +Z towards +X, which is the facing person's left (their right is fwd × up = -X for +Z)
     return yawDir(base - off);
@@ -153,8 +154,8 @@ export function solve(scene: Scene): Solved {
   const buildActor = (a: Actor, mirrored: boolean): SolvedActor => {
     const h = a.height ?? DEFAULT_HEIGHT;
     const at = pos.get(a.id)!;
-    const faceTarget = a.facing ? position(a.facing) : a.aim ? position(a.aim.split('.')[0]) : others(a.id);
-    const fwd = faceTarget ? flat(sub(faceTarget, at)) : [0, 0, 1] as V3;
+    const faceTarget = typeof a.facing === 'string' ? position(a.facing) : a.aim ? position(a.aim.split('.')[0]) : others(a.id);
+    const fwd = typeof a.facing === 'number' ? yawDir(a.facing * Math.PI / 180) : faceTarget ? flat(sub(faceTarget, at)) : [0, 0, 1] as V3;
     const pose = POSES.get(a.pose)!;
     const local: Local[] = mirrored ? mirror(pose.points) : pose.points;
     const points = local.map((l) => toWorld(l, at, fwd, h));

@@ -25,8 +25,8 @@ export interface Actor {
   /** what a pointing/firing pose aims at */
   aim?: Anchor;
   place: Placement;
-  /** who or what they face; default: the aim, else the other actors' centre */
-  facing?: string;
+  /** who or what they face (an id), or a world yaw in degrees (0 faces +Z, 90 faces +X); default: the aim, else the other actors' centre */
+  facing?: string | number;
 }
 
 export type StructureKind = 'building' | 'tower' | 'wall' | 'bridge' | 'truss' | 'vehicle' | 'tree' | 'rock' | 'crate' | 'pillar' | 'other';

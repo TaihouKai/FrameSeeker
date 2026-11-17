@@ -2,7 +2,7 @@
 // Each term names the textbook principle it encodes.
 import { add, dist, lerp, mul, sub, type V3 } from './vec.ts';
 import { cast, clear, corners, inside, type Prim, type World } from './geom.ts';
-import { frame, inFrame, pitch, project, ray, screenSegment, SIZE, type Cam, type Frame } from './camera.ts';
+import { frame, inFrame, pitch, project, ray, screenSegment, SIZE, type Aspect, type Cam, type Frame } from './camera.ts';
 import { KP } from './poses.ts';
 import type { Intent } from './scene.ts';
 import type { Solved, SolvedActor } from './solve.ts';
@@ -19,10 +19,25 @@ export const WEIGHTS: Record<Intent, Record<Term, number>> = {
   reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
 };
 
-/** How big the focus person is on the screen (fraction of the frame height), by intent: [zero, full, full, zero]. */
-const SUBJECT_SIZE: Record<Intent, [number, number, number, number]> = {
-  scale: [0.02, 0.05, 0.22, 0.4], action: [0.12, 0.25, 0.6, 0.9], emotion: [0.35, 0.6, 1.4, 2.2], reveal: [0.06, 0.15, 0.4, 0.6],
-};
+/** A scale shot: the person small against what is big ([zero, full, full, zero], person height / frame height). */
+const SCALE_SIZE: [number, number, number, number] = [0.02, 0.05, 0.22, 0.4];
+/**
+ * Shot scale as films use it: Cutting 2015 (Art & Perception), 13 956 frames from 48 popular films, 1935–2010:
+ * XLS 8%, LS 14%, MLS 24%, MS 30%, MCU 16%, CU 6%, XCU 1%. Score = the scale's frequency over the most common (MS).
+ * Each scale's centre as the person's full height over the frame height (the frame from the cut to just over the head:
+ * LS head to feet ≈ 0.9, MLS from the knees, MS the waist, MCU the chest, CU the head alone); log-linear between.
+ */
+export const SHOT_SCALES: [name: string, size: number, freq: number][] = [
+  ['XLS', 0.45, 0.08], ['LS', 0.92, 0.14], ['MLS', 1.33, 0.24], ['MS', 2.15, 0.3], ['MCU', 3.8, 0.16], ['CU', 6.7, 0.06], ['XCU', 12, 0.01],
+];
+export function shotScaleScore(size: number): number {
+  const top = Math.max(...SHOT_SCALES.map((s) => s[2]));
+  const xs = SHOT_SCALES.map((s) => Math.log(s[1])), ys = SHOT_SCALES.map((s) => s[2] / top), x = Math.log(Math.max(1e-3, size));
+  if (x <= xs[0]) return ys[0] * Math.max(0, (x - Math.log(0.015)) / (xs[0] - Math.log(0.015)));
+  if (x >= xs[xs.length - 1]) return ys[ys.length - 1];
+  const i = xs.findIndex((v) => v > x) - 1;
+  return ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i]);
+}
 
 export interface Ctx {
   solved: Solved; world: World; intent: Intent;
@@ -87,7 +102,7 @@ export interface Evaluation {
 /** 0 below a, rising to 1 at b, 1 to c, falling to 0 at d. */
 const tri = (x: number, a: number, b: number, c: number, d: number) => x <= a || x >= d ? 0 : x < b ? (x - a) / (b - a) : x <= c ? 1 : (d - x) / (d - c);
 
-const GRID: Record<'portrait' | 'landscape', [number, number]> = { portrait: [18, 27], landscape: [27, 18] };
+const GRID: Record<Aspect, [number, number]> = { portrait: [18, 27], landscape: [27, 18], wide: [30, 17] };
 
 export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const f = frame(cam);
@@ -102,7 +117,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   // H1 the focus is in frame and seen
   const focusSkip = new Set([ctx.focus.id]);
   const fp = ctx.focusPoints.map((p) => ({ p, s: project(f, p) }));
-  const seen = fp.filter((x) => inFrame(x.s, 0.03) && clear(w, cam.pos, x.p, focusSkip)).length / fp.length;
+  const seen = fp.filter((x) => inFrame(x.s) && clear(w, cam.pos, x.p, focusSkip)).length / fp.length;
   info.focus_visible = seen;
   if (seen < 0.7) return reject('focus not visible');
 
@@ -188,11 +203,11 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   if (info.subject_size < 0.015) return reject('focus too small');
   // with the payoff far from the focus both cannot be big: judge the person's size as in a wide shot
   const far = ctx.payoff && dist(ctx.focus.head, ctx.payoff.points.reduce((a, b) => add(a, mul(b, 1 / ctx.payoff!.points.length)), [0, 0, 0] as V3)) > 30;
-  terms.subject_size = tri(info.subject_size, ...SUBJECT_SIZE[far ? 'scale' : ctx.intent]);
-  // the face carries the moment: front to three-quarter view (the way the face points, so a look back counts)
+  terms.subject_size = far || ctx.intent === 'scale' ? tri(info.subject_size, ...SCALE_SIZE) : shotScaleScore(info.subject_size);
+  // the face carries the moment: front to three-quarter view (the way the face points, so a look back counts).
+  // Not a hard rule: films do play emotional beats on a back (4 of 30 reference shots, DESIGN.md §6.6.3)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
-  if (ctx.intent === 'emotion' && info.face_angle > 100) return reject('face turned away');
   terms.face = info.face_angle <= 60 ? 1 : info.face_angle <= 100 ? 1 - 0.7 * (info.face_angle - 60) / 40 : 0.1;
   // look room / lead room: space in front of where they face (Mascelli: composition)
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));
@@ -200,13 +215,13 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     const dx = ahead.u - head.u, dl = Math.hypot(dx, ahead.v - head.v);
     terms.lead_room = dl < 0.01 ? 0.6 : Math.min(1, Math.max(0, 0.5 + (dx / dl) * (0.5 - head.u) * 2));
   } else terms.lead_room = 0.6;
-  // never crop at a joint (Katz: framing the figure)
+  // never crop the subject at a joint (Katz: framing the figure). The subject only: the reference shots crop the
+  // people around it at the frame's edge freely (10 of 24 lost points when every person counted, DESIGN.md §6.6.3)
   let cuts = 0;
-  for (const a of ctx.solved.actors.values()) {
-    const ps = a.points.map((p) => project(f, p));
+  {
+    const ps = ctx.focus.points.map((p) => project(f, p));
     const vis = ps.filter((p) => inFrame(p)).length;
-    if (vis === 0 || vis === ps.length) continue;
-    for (const j of [KP.neck, KP.rElbow, KP.lElbow, KP.rWrist, KP.lWrist, KP.rKnee, KP.lKnee, KP.rAnkle, KP.lAnkle]) {
+    if (vis > 0 && vis < ps.length) for (const j of [KP.neck, KP.rElbow, KP.lElbow, KP.rWrist, KP.lWrist, KP.rKnee, KP.lKnee, KP.rAnkle, KP.lAnkle]) {
       const p = ps[j];
       if (p && (Math.abs(p.u) < 0.025 || Math.abs(1 - p.u) < 0.025 || Math.abs(p.v) < 0.025 || Math.abs(1 - p.v) < 0.025)) cuts++;
     }
@@ -218,7 +233,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) worst = Math.max(worst, overlapRatio(boxes[i], boxes[j]));
   terms.overlap = worst <= 0.3 ? 1 : Math.max(0, 1 - (worst - 0.3) / 0.7);
   // tall payoffs suit portrait, flat crossings suit landscape
-  terms.aspect = big ? (cam.aspect === 'portrait' ? 1 : 0.4) : ctx.line && theta < 30 ? (cam.aspect === 'landscape' ? 1 : 0.4) : 0.7;
+  terms.aspect = big ? (cam.aspect === 'portrait' ? 1 : 0.4) : ctx.line && theta < 30 ? (cam.aspect !== 'portrait' ? 1 : 0.4) : 0.7;
   // nothing thin growing out of the head (mergers / tangents)
   let merge = 0;
   for (const p of ctx.thin) {
