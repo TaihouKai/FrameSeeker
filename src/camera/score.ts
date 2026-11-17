@@ -143,6 +143,14 @@ const tri = (x: number, a: number, b: number, c: number, d: number) => x <= a ||
 
 const GRID: Record<Aspect, [number, number]> = { portrait: [18, 27], landscape: [27, 18], wide: [30, 17] };
 
+/**
+ * The evaluation baseline: the same hard constraints, then the rule of thirds alone (Liu et al. 2010's RT term, the
+ * simplest composition rule) as the total. Not used to choose shots; only to show what the full scorer adds.
+ */
+export function thirdsOnly(e: Evaluation): Evaluation {
+  return e.ok ? { ...e, total: e.info.liu_rt ?? 0 } : e;
+}
+
 export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const f = frame(cam);
   const w = ctx.world;

@@ -9,7 +9,7 @@
 //  - camera geometry: frame, project, ray, pitch, inFrame, SIZE, FOCALS
 import type { World3D, Rating } from '../scene/index.ts';
 import type { Image } from '../shared/image.ts';
-import { context, evaluate, TERMS, type Evaluation } from './score.ts';
+import { context, evaluate, thirdsOnly, TERMS, type Evaluation } from './score.ts';
 import { sampler, search, type SearchOpts, type SearchResult } from './search.ts';
 import { preview as renderPreview } from './render.ts';
 import { depthOf, faceAngleOf, gbuffer, keypoints, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
@@ -50,9 +50,15 @@ export interface Scorer {
   random(rand: () => number, aspects?: Cam['aspect'][]): () => Cam;
   search(opts?: SearchOpts): SearchResult;
 }
-export function scorer(w: World3D): Scorer {
+/**
+ * What a camera is scored by: 'full' (the scorer) or 'thirds' (the evaluation baseline: the same hard constraints,
+ * then the rule of thirds alone).
+ */
+export type Objective = 'full' | 'thirds';
+export function scorer(w: World3D, objective: Objective = 'full'): Scorer {
   const ctx = context(w.solved, w.world);
-  return { evaluate: (cam) => evaluate(ctx, cam), random: (rand, aspects) => sampler(ctx, rand, aspects), search: (opts) => search(ctx, opts) };
+  const score = objective === 'thirds' ? (cam: Cam) => thirdsOnly(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
+  return { evaluate: score, random: (rand, aspects) => sampler(ctx, rand, aspects), search: (opts) => search(ctx, opts, score) };
 }
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */

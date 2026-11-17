@@ -36,7 +36,8 @@ export function sampler(ctx: Ctx, rand: () => number, aspects: Aspect[] = ['port
   };
 }
 
-export function search(ctx: Ctx, opts: SearchOpts = {}): SearchResult {
+/** objective: what a camera is scored by (default the scorer; an evaluation baseline swaps in a simpler one) */
+export function search(ctx: Ctx, opts: SearchOpts = {}, objective: (cam: Cam) => Evaluation = (cam) => evaluate(ctx, cam)): SearchResult {
   const n = opts.n ?? 4000, k = opts.k ?? 3, refineN = opts.refine ?? 30, iters = opts.iters ?? 60;
   const rand = rng(opts.seed ?? 1);
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
@@ -45,7 +46,7 @@ export function search(ctx: Ctx, opts: SearchOpts = {}): SearchResult {
   const rejects: Record<string, number> = {};
   const ok: Candidate[] = [];
   const consider = (cam: Cam): Candidate => {
-    const ev = evaluate(ctx, cam);
+    const ev = objective(cam);
     if (!ev.ok) rejects[ev.reject!] = (rejects[ev.reject!] || 0) + 1;
     return { cam, ev };
   };

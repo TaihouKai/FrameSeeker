@@ -56,4 +56,19 @@ describe('composition search (calibration)', () => {
       expect(a.candidates.map((c) => c.cam)).toEqual(b.candidates.map((c) => c.cam));
     }
   });
+
+  it('CS4 the evaluation baseline keeps the hard constraints and scores by the rule of thirds alone; the scorer is unchanged', async () => {
+    const { realize } = await import('../src/scene/index.ts');
+    const { scorer } = await import('../src/camera/index.ts');
+    const { rng } = await import('../src/shared/vec.ts');
+    const w = realize(JSON.parse(readFileSync('scenes/classroom-talk.json', 'utf8')) as Scene);
+    const full = scorer(w), thirds = scorer(w, 'thirds'), next = full.random(rng(3), ['wide']);
+    let both = 0;
+    for (let i = 0; i < 300; i++) {
+      const cam = next(), a = full.evaluate(cam), b = thirds.evaluate(cam);
+      expect(b.ok).toBe(a.ok);
+      if (a.ok) { both++; expect(b.total).toBe(a.info.liu_rt); expect(a.total).toBe(evaluate(context(w.solved, w.world), cam).total); }
+    }
+    expect(both).toBeGreaterThan(10);
+  });
 });

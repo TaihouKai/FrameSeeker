@@ -1,0 +1,372 @@
+[
+ {
+  "scene": "scenes/beam-clash.json",
+  "moment": {
+   "focus": "dodger",
+   "action_line": "beam",
+   "payoff": "melt",
+   "source": "shooter",
+   "intent": "scale",
+   "may_hide": [
+    "shooter"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.501,
+    "height_m": 0.75,
+    "pitch_deg": 5,
+    "focal_mm": 14,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.486,
+    "height_m": 1.03,
+    "pitch_deg": 5,
+    "focal_mm": 24,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.407,
+    "height_m": 19.51,
+    "pitch_deg": -40,
+    "focal_mm": 18,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "dodger",
+    "kind": "person"
+   },
+   {
+    "id": "beam",
+    "kind": "line"
+   },
+   {
+    "id": "melt",
+    "kind": "damage"
+   },
+   {
+    "id": "tower",
+    "kind": "structure"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/classroom-talk.json",
+  "moment": {
+   "focus": "a",
+   "intent": "emotion",
+   "must_show": [
+    "b"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.913,
+    "height_m": 0.85,
+    "pitch_deg": 19,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.91,
+    "height_m": 1.12,
+    "pitch_deg": 6,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.89,
+    "height_m": 1.67,
+    "pitch_deg": -10,
+    "focal_mm": 35,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "a",
+    "kind": "person"
+   },
+   {
+    "id": "b",
+    "kind": "person"
+   },
+   {
+    "id": "env-ceiling",
+    "kind": "environment"
+   },
+   {
+    "id": "env-wall",
+    "kind": "environment"
+   },
+   {
+    "id": "env-blackboard",
+    "kind": "environment"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/lab-tanks.json",
+  "moment": {
+   "focus": "researcher",
+   "intent": "reveal",
+   "must_show": [
+    "tank2"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.787,
+    "height_m": 0.31,
+    "pitch_deg": 5,
+    "focal_mm": 35,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.78,
+    "height_m": 0.7,
+    "pitch_deg": 3,
+    "focal_mm": 35,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.767,
+    "height_m": 0.51,
+    "pitch_deg": 13,
+    "focal_mm": 24,
+    "aspect": "portrait"
+   }
+  ],
+  "regions": [
+   {
+    "id": "researcher",
+    "kind": "person"
+   },
+   {
+    "id": "tank2",
+    "kind": "structure"
+   },
+   {
+    "id": "tank6",
+    "kind": "structure"
+   },
+   {
+    "id": "env-ceiling",
+    "kind": "environment"
+   },
+   {
+    "id": "env-wall",
+    "kind": "environment"
+   },
+   {
+    "id": "env-floor",
+    "kind": "environment"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/reference-truss.json",
+  "moment": {
+   "focus": "figure",
+   "action_line": "bolt",
+   "source": "figure",
+   "intent": "scale"
+  },
+  "shots": [
+   {
+    "total": 0.78,
+    "height_m": 5.95,
+    "pitch_deg": 17,
+    "focal_mm": 28,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.728,
+    "height_m": 3.56,
+    "pitch_deg": 42,
+    "focal_mm": 18,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.721,
+    "height_m": 20.9,
+    "pitch_deg": -7,
+    "focal_mm": 18,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "figure",
+    "kind": "person"
+   },
+   {
+    "id": "bolt",
+    "kind": "line"
+   },
+   {
+    "id": "gantry",
+    "kind": "structure"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/rooftop-strike.json",
+  "moment": {
+   "focus": "y",
+   "action_line": "strike",
+   "source": "x",
+   "intent": "action",
+   "must_show": [
+    "x"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.943,
+    "height_m": 1.6,
+    "pitch_deg": -1,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.908,
+    "height_m": 0.56,
+    "pitch_deg": 24,
+    "focal_mm": 18,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.88,
+    "height_m": 1.62,
+    "pitch_deg": -7,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "x",
+    "kind": "person"
+   },
+   {
+    "id": "y",
+    "kind": "person"
+   },
+   {
+    "id": "strike",
+    "kind": "line"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/street-lookback.json",
+  "moment": {
+   "focus": "p",
+   "intent": "emotion"
+  },
+  "shots": [
+   {
+    "total": 0.865,
+    "height_m": 1.23,
+    "pitch_deg": 3,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.861,
+    "height_m": 1.4,
+    "pitch_deg": 5,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.86,
+    "height_m": 1.89,
+    "pitch_deg": -13,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "p",
+    "kind": "person"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/ward-pods.json",
+  "moment": {
+   "focus": "girl",
+   "intent": "emotion",
+   "must_show": [
+    "kid2"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.821,
+    "height_m": 0.39,
+    "pitch_deg": 11,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.764,
+    "height_m": 0.43,
+    "pitch_deg": 17,
+    "focal_mm": 35,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.76,
+    "height_m": 0.32,
+    "pitch_deg": 9,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "girl",
+    "kind": "person"
+   },
+   {
+    "id": "kid2",
+    "kind": "person"
+   },
+   {
+    "id": "base2",
+    "kind": "structure"
+   },
+   {
+    "id": "base3",
+    "kind": "structure"
+   },
+   {
+    "id": "pod1",
+    "kind": "structure"
+   },
+   {
+    "id": "pod2",
+    "kind": "structure"
+   },
+   {
+    "id": "pod3",
+    "kind": "structure"
+   },
+   {
+    "id": "env-ceiling",
+    "kind": "environment"
+   },
+   {
+    "id": "env-wall",
+    "kind": "environment"
+   }
+  ]
+ }
+]

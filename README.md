@@ -1,16 +1,76 @@
 # FrameSeeker
 
-From a moment in a story to a cinematic shot. An LLM writes the moment as a scene (who stands where, what hits
-what); code builds a gray-box 3D stage of it; a camera search scores thousands of viewpoints with **deterministic
-composition rules** from the film and photography literature (no AI judge); and the best shots come out as structure
-maps (depth, line art, pose, region masks) for an image renderer.
+**A shot planner: from a moment in a story to camera placements and structure maps for any image renderer.**
+
+An LLM writes the moment as a scene (who stands where, what hits what); code builds a gray-box 3D stage of it; a
+camera search scores thousands of viewpoints with **deterministic composition rules** from the film and photography
+literature (no AI judge); and the best shots come out as structure maps (depth, line art, OpenPose, a mask per
+person, effect and object) that any image renderer can take.
 
 Why: image models draw well but cannot be told *where the camera is*. A striking frame is mostly composition:
 camera height, angle, lens, what frames the subject. That part is geometry, so it is solved as geometry.
 
-**Contents:** [How it works](#how-it-works) · [Architecture](#architecture) · [The camera scorer](#the-camera-scorer) ·
-[Does it agree with directors?](#does-it-agree-with-directors) · [Generation (phase 6)](#generation-phase-6-archived-under-review) ·
-[Run](#run) · [Status](#status)
+### Does it pick the shots a director picks?
+
+Reference frames from anime episodes are rebuilt as gray-box scenes with the camera that shot them; the question
+is where the director's camera ranks among the search's random valid cameras. On four **held-out** episodes, each
+scored once with the scorer frozen beforehand:
+
+| | Director's camera in the top 5% |
+|---|---|
+| **FrameSeeker's scorer** | **36 / 59 shots (61%)** |
+| Baseline: rule of thirds alone, same hard constraints, same random cameras | 1 / 59 (2%) |
+| Chance | 5% |
+
+Details, the tuning episodes, and the caveats are in [Evaluation](#evaluation).
+
+**Contents:** [Gallery](#gallery) · [How it works](#how-it-works) · [Architecture](#architecture) ·
+[The camera scorer](#the-camera-scorer) · [Evaluation](#evaluation) · [Rendering adapters](#rendering-adapters) ·
+[Run](#run)
+
+---
+
+## Gallery
+
+Every scene in [`scenes/`](scenes/), run through phases 3–5 (`npm run gallery -- scenes/*.json`; deterministic, no
+model, no network). For each: the moment, the top three shots as gray-box previews (people in colours, the focus in
+red, a thirds grid), and the first shot's structure maps, which is what a renderer receives: **depth · line art ·
+OpenPose · region masks** (each person, effect, object and part of the set in its own colour).
+
+**Beam clash** — an empty street between glass towers at sunset; a beam from one hand grazes the other's head and
+melts the tower behind (intent: scale).
+![beam clash: top three shots](docs/gallery/beam-clash-shots.png)
+![beam clash: structure maps of the first shot](docs/gallery/beam-clash-maps.png)
+
+**Classroom talk** — after class, one student talks and smiles, the other listens with arms crossed, doubtful
+(intent: emotion).
+![classroom talk: top three shots](docs/gallery/classroom-talk-shots.png)
+![classroom talk: structure maps of the first shot](docs/gallery/classroom-talk-maps.png)
+
+**Lab tanks** — an underground lab at night: a researcher faces a row of glass tanks, her assistant behind her
+(intent: reveal). The tanks are glass: the people behind them stay visible to the camera's checks.
+![lab tanks: top three shots](docs/gallery/lab-tanks-shots.png)
+![lab tanks: structure maps of the first shot](docs/gallery/lab-tanks-maps.png)
+
+**Gantry** — standing on a steel gantry over a city street, a figure points and lightning leaps from the hand
+(intent: scale).
+![gantry: top three shots](docs/gallery/reference-truss-shots.png)
+![gantry: structure maps of the first shot](docs/gallery/reference-truss-maps.png)
+
+**Rooftop strike** — on an office rooftop at night, a punch, and the other side-steps it (intent: action).
+![rooftop strike: top three shots](docs/gallery/rooftop-strike-shots.png)
+![rooftop strike: structure maps of the first shot](docs/gallery/rooftop-strike-maps.png)
+
+**Look back** — a quiet residential street at sunset; someone looks back over the shoulder (intent: emotion).
+![look back: top three shots](docs/gallery/street-lookback-shots.png)
+![look back: structure maps of the first shot](docs/gallery/street-lookback-maps.png)
+
+**Ward** — a dim hospital ward at night: a girl stands by three children asleep in glass life-support capsules
+(intent: emotion).
+![ward: top three shots](docs/gallery/ward-pods-shots.png)
+![ward: structure maps of the first shot](docs/gallery/ward-pods-maps.png)
+
+The scores and cameras of every shot are in [`docs/gallery/gallery.json`](docs/gallery/gallery.json).
 
 ---
 
@@ -29,7 +89,7 @@ flowchart LR
     P4["4 · camera search<br/>composition rules"] --> P5["5 · structure maps"]
   end
   subgraph generate["generate/ — phase 6"]
-    P6["6 · render<br/>(archived, under review)"]
+    P6["6 · render<br/>(a replaceable adapter)"]
   end
   P3 -- "World3D" --> P4
   P5 -- "Shot + ShotMaps" --> P6
@@ -44,9 +104,10 @@ flowchart LR
 | 3. Realize | scene JSON → **gray-box 3D world**: mannequins in poses, boxes, cylinders, glass, beams, the place's dressing | code: a relation solver, then set dressing by the kind of place |
 | 4. Camera search | world → the best *k* **shots** that differ | code: thousands of random cameras, hard constraints, composition terms, local refinement |
 | 5. Structure maps | world + camera → depth, line art, OpenPose, a mask per person / effect / structure / part of the set, each person's planned joints and facing | code: one ray pass |
-| 6. Render | scene + shot + maps → picture | an image renderer (see [Generation](#generation-phase-6-archived-under-review)) |
+| 6. Render | scene + shot + maps → picture | a renderer adapter (see [Rendering adapters](#rendering-adapters)) |
 
-Phases 3–5 are deterministic: the same scene gives the same shots.
+Phases 3–5 are deterministic: the same scene gives the same shots. The project's own work is phases 1–5;
+phase 6 is meant to hand the maps to an existing renderer.
 
 ---
 
@@ -56,7 +117,7 @@ Phases 3–5 are deterministic: the same scene gives the same shots.
 
 ```mermaid
 flowchart BT
-  shared["shared/<br/>vectors · ray casting · PNG · skeleton format"]
+  shared["shared/<br/>vectors · ray casting · images · skeleton format"]
   scene["scene/<br/>phases 1–3"]
   camera["camera/<br/>phases 4–5"]
   generate["generate/<br/>phase 6"]
@@ -97,7 +158,7 @@ camera's `rate` is passed in as a function by the pipeline, so the dependency st
 | camera → scene, staging only | the best shot's score and terms, through an injected function | `Rating` (scene/index.ts) |
 | camera → generate | a shot (camera, score, measurements) and its maps (images, region masks, planned people) | `Shot`, `ShotMaps` (camera/index.ts) |
 | generate → caller | the picture and whatever the renderer reports | `GenerateResult` (generate/types.ts) |
-| scene, camera → eval | `realize`; `scorer(world)`: score a camera, draw the search's random cameras, search; camera geometry | camera/index.ts |
+| scene, camera → eval | `realize`; `scorer(world, objective)`: score a camera, draw the search's random cameras, search; camera geometry | camera/index.ts |
 
 ### Inside each module
 
@@ -116,8 +177,7 @@ only where it measurably helps · `solve.ts` relations → exact geometry · `po
 constraints and score terms · `composition2d.ts` picture-plane composition (Liu et al. 2010) · `maps.ts` the
 structure maps · `render.ts` the gray-box preview for people.
 
-**`generate/`** — phase 6. Public: the renderer contract (`Generator`, `GenerateInput`, `GenerateResult`). No
-renderer in this version.
+**`generate/`** — phase 6. Public: the renderer contract (`Generator`, `GenerateInput`, `GenerateResult`).
 
 **`eval/`** — the scorer against films. Public: `evalRef`, `rebuild`.
 `refs.ts` rebuilds an annotated film frame as a gray-box scene and its camera · `eval.ts` ranks that camera.
@@ -143,39 +203,77 @@ terms in [0, 1] combined by a weighted geometric mean, each from a published rul
 
 The weights depend on the shot's intent (scale, action, emotion, reveal).
 
-## Does it agree with directors?
+---
 
-Frames are sampled every 10 s from anime episodes and filtered by fixed rules (no cherry-picking); 15 per episode
-are annotated by hand (horizon, people's crowns and feet) and rebuilt as gray-box scenes with the camera that shot
-them, by single-view metrology. The measure: where the director's camera ranks among the search's random valid
-cameras.
+## Evaluation
 
-Held-out episodes (the scorer frozen before each one, each run once):
+**Protocol.** Frames are sampled every 10 s from an episode and filtered by fixed rules (story footage, a person at
+medium close-up or wider, a measurable ground, no sexualised framing, one frame per shot), then 15 are drawn at
+equal intervals: no hand-picking. Each is annotated by hand (horizon, people's crowns and feet) and rebuilt as a
+gray-box scene with the camera that shot it, by single-view metrology. The measure: the director's camera's
+percentile among the search's random valid cameras for that scene (top 5% = the 95th percentile or above), and
+whether the search's own top 3 contain a camera near it. A rejected reference camera counts as a miss. The frames
+and annotations are not in the repository (copyrighted footage); the code is in `src/eval/`.
 
-| Episode | Studio | Director's shot in the top 5% |
+**Tuning and held-out episodes, in order.** The scorer was first built on Hyouka ep 5 (Kyoto Animation) and
+A Certain Scientific Railgun S ep 24 (J.C.Staff). Each held-out episode below was annotated first, then scored
+**once** with the scorer frozen at the named commit, and only then joined the tuning set. After Log Horizon the
+action shot-scale prior was changed (the episode showed action shots are wider); Mahouka and GATE were scored with
+that change already frozen.
+
+| Held-out episode | Studio | Scorer frozen at | FrameSeeker: top 5% | Baseline: top 5% | FrameSeeker: top 3 |
+|---|---|---|---|---|---|
+| Oregairu S1 ep 12 | Brain's Base | `4996aa6` | 8 / 15 | 1 / 15 | 3 / 15 |
+| Log Horizon ep 4 | Satelight | `763dc6c` | 5 / 14 | 0 / 14 | 5 / 14 |
+| Mahouka ep 22 | Madhouse | `0d54cc0` | 12 / 15 | 0 / 15 | 4 / 15 |
+| GATE ep 6 | A-1 Pictures | `0d54cc0` | 11 / 15 | 0 / 15 | 1 / 15 |
+| **Total** | | | **36 / 59 (61%)** | **1 / 59 (2%)** | 13 / 59 |
+
+The baseline ranks by the rule of thirds alone (Liu et al.'s RT term) under the same hard constraints, over the
+same random cameras, computed with each frozen commit's own code. Median percentile per episode: 95 / 92 / 99 / 97%
+for FrameSeeker, 76 / 49 / 63 / 47% for the baseline (chance: 50%).
+
+**All six episodes, current scorer — includes the tuning data.**
+
+| On all 88 rebuilt shots (89 annotated, 1 rebuild failure) | FrameSeeker | Baseline (thirds only) |
 |---|---|---|
-| Oregairu S1 ep 12 | Brain's Base | 8 / 15 |
-| Log Horizon ep 4 | Satelight | 5 / 14 (action shots wider than expected; fixed after) |
-| Mahouka ep 22 | Madhouse | 12 / 15 |
-| GATE ep 6 | A-1 Pictures | 11 / 15 |
+| Director's camera in the top 5% | 59 (67%) | 6 (7%) |
+| Median percentile | 98% | 65% |
+| Director's camera among the search's top 3 | 24 | 7 |
 
-On all 88 rebuilt shots (the six episodes so far): 59 in the top 5%, the director's camera among the search's top 3
-in 24. Known weak spots: backs and wide establishing shots; the shot scale of action scenes (two episodes disagree);
-a person lying down can be "visible" from a camera that cannot read them. The frames and annotations stay local; the
-evaluation code is in `src/eval/`.
+**Caveats.**
+- The held-out figures belong to the frozen versions. The scorer has changed since the last held-out run, using
+  all six episodes (a camera-tilt prior measured on all 88 shots; the mannequin's proportions; room floors; glass),
+  so **the current version has no held-out measurement yet**; the next episodes will give it one.
+- 59 held-out shots from four episodes is a small sample, and every episode is anime.
+- The rule of thirds alone does no better than chance at the top 5%: placing a subject on a third is not what
+  separates a director's camera from the others. What does is shot scale, face angle, tilt and the rest of the
+  scorer.
+- "Top 3" is a harsh measure: there is usually more than one good camera, and the search's best is often a
+  different, equally valid one (GATE: 11 / 15 in the top 5%, 1 / 15 in the top 3).
+- Known weak spots: backs and wide establishing shots; the shot scale of action scenes; a person lying down can be
+  "visible" from a camera that cannot read them.
+
+`npm run eval` reproduces the all-episode numbers (`--objective thirds` for the baseline), given the local
+annotations.
 
 ---
 
-## Generation (phase 6): archived, under review
+## Rendering adapters
 
 A renderer gets the scene, the shot and its maps, and makes its own prompt (`src/generate/types.ts`): an
-image-board model wants tags, another XML or sentences.
+image-board model wants tags, another XML or sentences. Which renderer to use is open; the first adapter is
+archived on branch [`archive/phase6-sdxl-comfy`](../../tree/archive/phase6-sdxl-comfy) (tag
+`phase6-sdxl-comfy-v1`): SDXL + ControlNet on ComfyUI, run on Comfy Cloud.
 
-The first renderer, SDXL + ControlNet on ComfyUI (run on Comfy Cloud), is on branch
-[`archive/phase6-sdxl-comfy`](../../tree/archive/phase6-sdxl-comfy) (tag `phase6-sdxl-comfy-v1`). Most of its work
-went into patching known weaknesses of that stack, which newer multi-character, structure-controlled renderers may
-already solve; so phase 6 is being reconsidered as a thin adapter onto one of them. What the archived renderer
-learned, as requirements for whatever comes next:
+Some of its pictures, each beside the gray-box shot it was drawn from (gray box at the time of the run):
+
+![beam clash: gray box and render](docs/rendered/beam-clash.jpg)
+![classroom: gray box and render](docs/rendered/classroom-talk-1.jpg)
+![classroom, low angle: gray box and render](docs/rendered/classroom-talk-2.jpg)
+![lab tanks: gray box and render](docs/rendered/lab-tanks.jpg)
+
+What that adapter learned, as requirements for the next one:
 
 - **Each thing's words only in its own region.** People, effects, structures and the labelled parts of the set each
   get their own prompt inside their own mask; the free-text description of the place never reaches a wall. With
@@ -208,7 +306,8 @@ npm run frameseeker -- stories/rooftop-chase.txt      # phases 1–5 from a stor
 | `npm run frameseeker -- <story.txt \| scene.json>` | 1–5 (3–5 from a scene file); 6 with `--generator` | the whole pipeline |
 | `npm run stage -- <story.txt>` | 1–3 | inspecting extraction and staging |
 | `npm run shot -- <scene.json>` | 3–5 | inspecting the camera search: previews, maps, every score term |
-| `npm run eval` | — | the scorer against the annotated film frames (local data) |
+| `npm run gallery -- <scene.json ...>` | 3–5 | the gallery above (`docs/gallery/`) |
+| `npm run eval [-- --objective thirds]` | — | the scorer (or the baseline) against the annotated film frames (local data) |
 | `npm run refs:select` | — | sampling reference frames by the fixed rules (local data) |
 
 Each shot comes out as a gray-box preview, depth, line art, OpenPose, a mask per region (each person, effect,
@@ -217,5 +316,5 @@ when an effect is in frame. Example scenes are in `scenes/`, example stories in 
 
 ## Status
 
-Phases 1–5 work end to end. Phase 6 ran on Comfy Cloud with the archived renderer (the pictures kept the gray box's
-composition); which renderer to use next is being decided after an outside review.
+Phases 1–5 work end to end and are deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
+adapter is archived. Next: held-out episodes for the current scorer.

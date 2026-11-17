@@ -2,7 +2,7 @@
 // chosen? For each rebuilt reference shot: the reference camera's score, its percentile among valid random cameras
 // (the search's own prior, in the reference's format), and whether the search's top 3 contain a camera near it.
 import { dist, norm, rng, sub } from '../shared/vec.ts';
-import { frame, project, scorer, TERMS, type Cam, type Candidate, type Evaluation, type Term } from '../camera/index.ts';
+import { frame, project, scorer, TERMS, type Cam, type Candidate, type Evaluation, type Objective, type Term } from '../camera/index.ts';
 import { realize } from '../scene/index.ts';
 import { clear } from '../shared/geom.ts';
 import { KP } from '../shared/skeleton.ts';
@@ -30,9 +30,10 @@ export interface RefResult {
 /** Near the reference: looking the same way within 20° and at the focus from within ×2 the distance (the search's own "same shot"). */
 export const NEAR_ANGLE = 20, NEAR_RATIO = 2;
 
-export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?: number } = {}): RefResult {
+/** objective: rank by the full scorer (default) or by the rule-of-thirds baseline, same constraints and cameras */
+export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?: number; objective?: Objective } = {}): RefResult {
   const b = rebuild(r);
-  const w = realize(b.scene), { solved, world } = w, judge = scorer(w);
+  const w = realize(b.scene), { solved, world } = w, judge = scorer(w, opts.objective);
   const focus = solved.actors.get(b.scene.moment.focus)!;
   const ref = judge.evaluate(b.cam);
   // the rebuild must agree with the frame: the focus's head is seen there (it was annotated), so if the gray box hides
