@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { rebuild, REF_H, REF_W, type RefFrame } from '../src/eval/refs.ts';
 import { solve } from '../src/scene/solve.ts';
 import { frame, project, type Cam } from '../src/camera/camera.ts';
-import { KP } from '../src/scene/poses.ts';
+import { KP } from '../src/shared/skeleton.ts';
 import { ACTION_SCALES, faceScore, shotScaleScore } from '../src/camera/score.ts';
 import type { Scene } from '../src/scene/types.ts';
 

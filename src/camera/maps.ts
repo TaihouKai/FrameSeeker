@@ -12,10 +12,9 @@
 import { add, dist, dot, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, inside, rayPrim, raySphere, type World } from '../shared/geom.ts';
 import type { Image } from '../shared/image.ts';
-import { INDOOR_KINDS } from '../scene/index.ts';
-import type { Solved, SolvedActor } from '../scene/solve.ts';
+import { INDOOR_KINDS, type Solved, type SolvedActor } from '../scene/index.ts';
 import { frame, inFrame, project, ray, SIZE, type Cam, type Frame } from './camera.ts';
-import { KP } from '../scene/poses.ts';
+import { KP } from '../shared/skeleton.ts';
 import { faceDir } from './score.ts';
 
 const Kind = { Sky: 0, Ground: 1, Actor: 2, Structure: 3, Dressing: 4 } as const;

@@ -2,8 +2,8 @@
 import { add, dist, dot, lerp, mul, norm, sub, type V3 } from '../shared/vec.ts';
 import { cast, inside, rayPrim, raySphere, type World } from '../shared/geom.ts';
 import { frame, project, ray, SIZE, type Cam } from './camera.ts';
-import { BONES } from '../scene/poses.ts';
-import type { Solved } from '../scene/solve.ts';
+import { BONES } from '../shared/skeleton.ts';
+import type { Solved } from '../scene/index.ts';
 import { faceDir } from './score.ts';
 import type { Image } from '../shared/image.ts';
 

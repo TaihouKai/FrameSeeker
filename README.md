@@ -16,8 +16,21 @@ camera height, angle, lens, what frames the subject. That part is geometry, so i
 | `src/camera/` | 4. camera search scored by composition rules · 5. 2D structure maps of each shot | `shoot`, `maps`, `rate` |
 | `src/generate/` | 6. scene + shot + structure maps → an image renderer (the contract only: the first renderer is archived, see below) | `Generator` |
 
-`src/pipeline.ts` wires them. Each module talks to the next only through its `index.ts`, so any one can be swapped.
-Staging needs the camera's score; it gets it as an injected function, so the scene module never imports the camera.
+`src/pipeline.ts` wires them. Staging needs the camera's score; it gets it as an injected function, so the scene
+module never imports the camera.
+
+**Modules meet only at their `index.ts`**, so each can be reworked on its own behind it:
+
+| Module | May use | Its `index.ts` offers |
+|---|---|---|
+| `shared/` | nothing | vectors, ray casting, PNG, the skeleton format (OpenPose body-18) |
+| `scene/` | shared | `buildScenes`, `realize` → `World3D`; the world's types; the pose library |
+| `camera/` | shared, scene | `shoot`, `rate`, `scorer` (score / sample / search on one world), `maps`, `preview`, camera geometry |
+| `generate/` | shared, scene, camera | the renderer contract |
+| `eval/` | shared, scene, camera | `evalRef`, `rebuild` (reference shots) |
+
+`tests/architecture.test.ts` fails on any import that crosses a module other than through its `index.ts`, or that
+points up the list.
 
 ## The scorer
 

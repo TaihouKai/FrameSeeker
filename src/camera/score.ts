@@ -3,9 +3,8 @@
 import { add, dist, lerp, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, corners, inside, type Prim, type World } from '../shared/geom.ts';
 import { frame, inFrame, pitch, project, ray, screenSegment, SIZE, type Aspect, type Cam, type Frame } from './camera.ts';
-import { KP } from '../scene/poses.ts';
-import type { Intent } from '../scene/types.ts';
-import type { Solved, SolvedActor } from '../scene/solve.ts';
+import { KP } from '../shared/skeleton.ts';
+import type { Intent, Solved, SolvedActor } from '../scene/index.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
 export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;

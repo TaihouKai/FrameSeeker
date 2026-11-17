@@ -3,11 +3,9 @@
 // --previews, the rebuilt scene seen by each reference camera, to check the rebuild against the frame).
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { evalRef, type RefResult } from '../eval/eval.ts';
-import { rebuild, type RefFrame } from '../eval/refs.ts';
-import { solve } from '../scene/solve.ts';
-import { dress } from '../scene/dress.ts';
-import { preview } from '../camera/render.ts';
+import { evalRef, rebuild, type RefFrame, type RefResult } from '../eval/index.ts';
+import { realize } from '../scene/index.ts';
+import { preview } from '../camera/index.ts';
 import { encodePng } from '../shared/png.ts';
 
 const args = process.argv.slice(2);
@@ -21,7 +19,7 @@ mkdirSync('out/eval', { recursive: true });
 const results: RefResult[] = [];
 for (const r of refs) {
   if (previews) {
-    const b = rebuild(r), s = solve(b.scene), w = dress(s), img = preview(s, w, b.cam);
+    const b = rebuild(r), img = preview(realize(b.scene), b.cam);
     writeFileSync(join('out/eval', r.id.replace('#', '-') + '.png'), encodePng(img.width, img.height, img.pixels, img.channels));
   }
   const x = evalRef(r, { n });

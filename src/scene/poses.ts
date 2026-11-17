@@ -2,17 +2,9 @@
 // ground, facing +f. Local coordinates are [s, y, f]: s towards the person's own right, y up, f forward.
 // Hand-authored approximations; meant to be reviewed and replaced by poses made in a 3D pose editor.
 import type { V3 } from '../shared/vec.ts';
+import { HEAD, KP } from '../shared/skeleton.ts';
 
 export type Local = [number, number, number];
-export const KP = {
-  nose: 0, neck: 1, rShoulder: 2, rElbow: 3, rWrist: 4, lShoulder: 5, lElbow: 6, lWrist: 7,
-  rHip: 8, rKnee: 9, rAnkle: 10, lHip: 11, lKnee: 12, lAnkle: 13, rEye: 14, lEye: 15, rEar: 16, lEar: 17,
-} as const;
-/** Bones as drawn in an OpenPose skeleton. */
-export const BONES: [number, number][] = [
-  [1, 2], [2, 3], [3, 4], [1, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10], [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16], [0, 15], [15, 17],
-];
-export const HEAD: number[] = [KP.nose, KP.rEye, KP.lEye, KP.rEar, KP.lEar];
 const UPPER: number[] = [KP.nose, KP.neck, KP.rShoulder, KP.rElbow, KP.rWrist, KP.lShoulder, KP.lElbow, KP.lWrist, KP.rEye, KP.lEye, KP.rEar, KP.lEar];
 
 export interface Pose {

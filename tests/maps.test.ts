@@ -4,7 +4,7 @@ import { realize, type Scene } from '../src/scene/index.ts';
 import { maps, shoot, type Cam } from '../src/camera/index.ts';
 import { gbuffer, lineartOf, keypoints, OPENPOSE_COLOURS } from '../src/camera/maps.ts';
 import { frame, project } from '../src/camera/camera.ts';
-import { KP } from '../src/scene/poses.ts';
+import { KP } from '../src/shared/skeleton.ts';
 
 const load = (name: string) => realize(JSON.parse(readFileSync(`scenes/${name}.json`, 'utf8')) as Scene);
 const px = (img: { width: number; channels: number; pixels: Uint8Array }, x: number, y: number) =>

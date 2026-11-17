@@ -12,7 +12,10 @@ import type { World } from '../shared/geom.ts';
 
 export type * from './types.ts';
 export { INDOOR_KINDS, PLACE_KINDS } from './types.ts';
-export type { Solved, SolvedActor } from './solve.ts';
+// the solved 3D world, as the camera module reads it
+export type { Solved, SolvedActor, SolvedStructure, SolvedLine, SolvedVolume, SolvedDamage } from './solve.ts';
+// the pose library (the names the solver accepts)
+export { POSES, type Pose } from './poses.ts';
 export type { Op } from './llm/stage.ts';
 export type { Chat } from './llm/chat.ts';
 export { veniceChat, openAiChat } from './llm/chat.ts';

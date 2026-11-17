@@ -3,9 +3,9 @@
 // pitch and roll, two vanishing points the focal length, and people of known height the camera height and where
 // they stand. The annotations are measurements; nothing here judges the shot.
 import { add, mul, sub, type V3 } from '../shared/vec.ts';
-import { frame, project, ray, type Cam } from '../camera/camera.ts';
-import { POSES, KP } from '../scene/poses.ts';
-import type { Intent, Scene } from '../scene/types.ts';
+import { frame, project, ray, type Cam } from '../camera/index.ts';
+import { POSES, type Intent, type Scene } from '../scene/index.ts';
+import { KP } from '../shared/skeleton.ts';
 
 /** Annotation image size (the frames are scaled to 960 x 540 with a 40 px grid). */
 export const REF_W = 960, REF_H = 540;

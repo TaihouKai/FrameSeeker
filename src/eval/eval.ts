@@ -2,14 +2,11 @@
 // chosen? For each rebuilt reference shot: the reference camera's score, its percentile among valid random cameras
 // (the search's own prior, in the reference's format), and whether the search's top 3 contain a camera near it.
 import { dist, norm, rng, sub } from '../shared/vec.ts';
-import { frame, project, type Cam } from '../camera/camera.ts';
+import { frame, project, scorer, TERMS, type Cam, type Candidate, type Evaluation, type Term } from '../camera/index.ts';
+import { realize } from '../scene/index.ts';
 import { clear } from '../shared/geom.ts';
-import { solve } from '../scene/solve.ts';
-import { dress } from '../scene/dress.ts';
-import { context, evaluate, TERMS, type Evaluation, type Term } from '../camera/score.ts';
-import { sampler, search, type Candidate } from '../camera/search.ts';
+import { KP } from '../shared/skeleton.ts';
 import { rebuild, REF_H, REF_W, type RefFrame } from './refs.ts';
-import { KP } from '../scene/poses.ts';
 
 export interface RefResult {
   id: string;
@@ -35,13 +32,14 @@ export const NEAR_ANGLE = 20, NEAR_RATIO = 2;
 
 export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?: number } = {}): RefResult {
   const b = rebuild(r);
-  const solved = solve(b.scene), world = dress(solved), ctx = context(solved, world);
-  const ref = evaluate(ctx, b.cam);
+  const w = realize(b.scene), { solved, world } = w, judge = scorer(w);
+  const focus = solved.actors.get(b.scene.moment.focus)!;
+  const ref = judge.evaluate(b.cam);
   // the rebuild must agree with the frame: the focus's head is seen there (it was annotated), so if the gray box hides
   // it from the reference camera the rebuild is wrong (people drawn thinner than the gray-box body), not the scorer
   const fr = frame(b.cam);
-  const headPts = [ctx.focus.head, ctx.focus.points[KP.nose], ctx.focus.points[KP.rEye], ctx.focus.points[KP.lEye]];
-  const hidden = headPts.filter((p) => !clear(world, b.cam.pos, p, new Set([ctx.focus.id]))).length;
+  const headPts = [focus.head, focus.points[KP.nose], focus.points[KP.rEye], focus.points[KP.lEye]];
+  const hidden = headPts.filter((p) => !clear(world, b.cam.pos, p, new Set([focus.id]))).length;
   const rebuild_ok = hidden <= headPts.length / 2;
   // reprojection: crowns and feet of the rebuilt people against the annotation
   const f = fr;
@@ -56,9 +54,9 @@ export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?
     }
   }
   // random cameras in the reference's format
-  const next = sampler(ctx, rng(opts.seed ?? 7), ['wide']);
+  const next = judge.random(rng(opts.seed ?? 7), ['wide']);
   const valid: Evaluation[] = [];
-  for (let i = 0; i < (opts.n ?? 3000); i++) { const e = evaluate(ctx, next()); if (e.ok) valid.push(e); }
+  for (let i = 0; i < (opts.n ?? 3000); i++) { const e = judge.evaluate(next()); if (e.ok) valid.push(e); }
   const below = valid.filter((e) => e.total < ref.total).length;
   valid.sort((x, y) => y.total - x.total);
   const best = valid.slice(0, Math.max(1, Math.ceil(valid.length / 10)));
@@ -68,8 +66,8 @@ export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?
     if (ref.terms[t] !== undefined || xs.length) terms[t] = { ref: ref.terms[t] ?? NaN, top10: xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN };
   }
   // the search's top 3
-  const res = search(ctx, { n: opts.searchN ?? 4000, seed: opts.seed ?? 1, k: 3, aspects: ['wide'] });
-  const top = res.candidates.map((c) => closeness(c, b.cam, ctx.focus.head as [number, number, number]));
+  const res = judge.search({ n: opts.searchN ?? 4000, seed: opts.seed ?? 1, k: 3, aspects: ['wide'] });
+  const top = res.candidates.map((c) => closeness(c, b.cam, focus.head as [number, number, number]));
   return {
     id: r.id, estimated: b.estimated, rebuild_ok, reprojection_px: n ? Math.sqrt(se / n) : NaN,
     camera: { height: b.cam.pos[1], pitch_deg: Math.atan(b.cam.target[1] - b.cam.pos[1]) * 180 / Math.PI, focal: b.cam.focal },
