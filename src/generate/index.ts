@@ -1,24 +1,20 @@
-// Module 3 — generation (phase 6): the shot's structure maps (composition: depth, later lineart and pose) plus the
-// prompt (content) go to an image backend. Backends are stubs for now (ComfyUI workflow with
-// ControlNet on Comfy Cloud or RunPod; NovelAI as an alternative); every call throws NotImplemented.
-import type { ShotMaps } from '../camera/index.ts';
-import type { Image } from '../shared/image.ts';
-import type { Prompt } from './prompt.ts';
+// Module 3 — generation (phase 6): the shot's structure maps (composition: depth, line art, pose; who is where:
+// region masks) plus the prompt (content) go to an image backend.
+//  - comfy: a ComfyUI server (SDXL + ControlNet depth/line art/pose + a regional prompt per person), configured by
+//    environment (comfy.ts); not configured → GeneratorUnavailable.
+//  - novelai: a stub (NovelAI has no structure control for its V4 models; it may come back for its character
+//    positions, which the region centres give).
+import { comfyConfigFromEnv, comfyGenerator } from './comfy.ts';
+import { NotImplemented, type Generator } from './types.ts';
 
 export { promptOf, shotTags, NEGATIVE, type Prompt, type CharacterPrompt } from './prompt.ts';
+export { GeneratorUnavailable, NotImplemented, type GenerateInput, type Generator } from './types.ts';
+export { comfyGenerator, comfyConfigFromEnv, type ComfyConfig } from './comfy.ts';
+export { workflow, DEFAULT_CONTROL, DEFAULT_SAMPLING, type ComfyModels } from './workflow.ts';
 
-export interface GenerateInput { maps: ShotMaps; prompt: Prompt; width: number; height: number; seed?: number }
-export interface Generator { readonly name: string; generate(input: GenerateInput, signal?: AbortSignal): Promise<Image> }
-
-export class NotImplemented extends Error {
-  constructor(backend: string) { super(`generator "${backend}" is not implemented yet`); this.name = 'NotImplemented'; }
-}
-
-const stub = (name: string): Generator => ({ name, generate: async () => { throw new NotImplemented(name); } });
-
-/** ComfyUI (ControlNet depth/lineart/pose) through a hosted API. */
-export const comfy = stub('comfy');
-/** NovelAI image generation (V4 multi-character prompts). */
-export const novelai = stub('novelai');
+/** ComfyUI, configured from the environment when called. */
+export const comfy: Generator = comfyGenerator(() => comfyConfigFromEnv());
+/** NovelAI image generation (stub). */
+export const novelai: Generator = { name: 'novelai', generate: async () => { throw new NotImplemented('novelai'); } };
 
 export const GENERATORS: Record<string, Generator> = { comfy, novelai };

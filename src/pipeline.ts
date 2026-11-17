@@ -2,7 +2,7 @@
 // Each module only sees the one before it through its index.ts contract; swap any module by keeping that contract.
 import { buildScenes, realize, type Built, type Chat, type Scene, type World3D } from './scene/index.ts';
 import { maps, rate, shoot, SIZE, type SearchOpts, type Shot, type ShotMaps } from './camera/index.ts';
-import { NotImplemented, promptOf, type Generator, type Prompt } from './generate/index.ts';
+import { GeneratorUnavailable, promptOf, type Generator, type Prompt } from './generate/index.ts';
 import type { Image } from './shared/image.ts';
 
 export interface ShotResult { shot: Shot; maps: ShotMaps; prompt: Prompt; image: Image | null; note?: string }
@@ -12,7 +12,7 @@ export interface RunOpts {
   /** cameras to keep (default 3) */
   k?: number;
   search?: SearchOpts;
-  /** phase 6; omitted or not implemented → maps and prompts only */
+  /** phase 6; omitted or unavailable (not configured, not implemented) → maps and prompts only */
   generator?: Generator;
 }
 
@@ -35,7 +35,7 @@ export async function runScene(scene: Scene, opts: RunOpts = {}): Promise<RunRes
       try {
         image = await opts.generator.generate({ maps: m, prompt, width: SIZE[shot.cam.aspect].w, height: SIZE[shot.cam.aspect].h });
       } catch (e) {
-        if (!(e instanceof NotImplemented)) throw e;
+        if (!(e instanceof GeneratorUnavailable)) throw e;
         note = e.message;
       }
     }

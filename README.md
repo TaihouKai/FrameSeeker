@@ -14,7 +14,7 @@ camera height, angle, lens, what frames the subject. That part is geometry, so i
 |---|---|---|
 | `src/scene/` | 1. text → scene JSON (LLM, faithful to the text) · 2. staging: the LLM may only *add* set pieces, and each one is kept only if the camera score rises · 3. scene JSON → 3D world (relation solver + set dressing) | `buildScenes`, `realize` |
 | `src/camera/` | 4. camera search scored by composition rules · 5. 2D structure maps of each shot | `shoot`, `maps`, `rate` |
-| `src/generate/` | 6. structure maps + prompt → image backend (ComfyUI / NovelAI: **stubs for now**) | `promptOf`, `Generator` |
+| `src/generate/` | 6. structure maps + prompt → image backend: a ComfyUI client (SDXL, ControlNet depth / line art / pose, a regional prompt per person); NovelAI is a stub | `promptOf`, `Generator`, `workflow` |
 
 `src/pipeline.ts` wires them. Each module talks to the next only through its `index.ts`, so any one can be swapped.
 Staging needs the camera's score; it gets it as an injected function, so the scene module never imports the camera.
@@ -64,6 +64,17 @@ npm run shot -- scenes/beam-clash.json               # camera search with every 
 
 Each shot comes out as a gray-box preview, depth, line art, pose, region masks and a prompt.
 
+## Generation (phase 6)
+
+ sends each shot to a ComfyUI server through its standard HTTP API (upload, queue, poll, download),
+so it works with a local ComfyUI, RunPod, or a hosted service that keeps the API. The workflow uses core nodes only:
+an SDXL checkpoint (optionally v-prediction), ControlNets for depth, line art and pose (strengths and step ranges in
+), and each person's tags inside their mask. Configuration by environment:
+
+\
+Without a server the pipeline still writes the maps and prompts and notes that nothing was generated.
+
 ## Status
 
-Phases 1–5 work end to end: each shot gives a gray-box preview and the ControlNet maps (depth, line art of the setting and the effects, an OpenPose skeleton per person) plus a mask per person and per effect for regional prompts. Next: the ComfyUI ControlNet workflow for phase 6.
+Phases 1–5 work end to end; the phase 6 client is tested against a mock ComfyUI server but has not yet been run on a
+GPU server, so ControlNet strengths are starting values.

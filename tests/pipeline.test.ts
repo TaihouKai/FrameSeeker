@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runScene } from '../src/pipeline.ts';
-import { comfy, NotImplemented, promptOf } from '../src/generate/index.ts';
+import { novelai, NotImplemented, promptOf } from '../src/generate/index.ts';
 import type { Scene } from '../src/scene/index.ts';
 
 const scene = JSON.parse(readFileSync('scenes/classroom-talk.json', 'utf8')) as Scene;
 
 describe('pipeline: scene → camera → generate', () => {
   it('PL1 a scene file gives shots, each with maps and a prompt; the stub generator reports itself, nothing crashes', async () => {
-    const r = await runScene(scene, { k: 2, search: { n: 600, refine: 5, iters: 10 }, generator: comfy });
+    const r = await runScene(scene, { k: 2, search: { n: 600, refine: 5, iters: 10 }, generator: novelai });
     expect(r.shots.length).toBeGreaterThan(0);
     for (const s of r.shots) {
       expect(s.shot.total).toBeGreaterThan(0);
@@ -20,8 +20,8 @@ describe('pipeline: scene → camera → generate', () => {
     }
   });
 
-  it('PL2 the generator stubs throw NotImplemented', async () => {
-    await expect(comfy.generate({ maps: {} as never, prompt: promptOf(scene), width: 1, height: 1 })).rejects.toBeInstanceOf(NotImplemented);
+  it('PL2 the NovelAI stub throws NotImplemented', async () => {
+    await expect(novelai.generate({ maps: {} as never, prompt: promptOf(scene), width: 1, height: 1 })).rejects.toBeInstanceOf(NotImplemented);
   });
 
   it('PL3 the prompt puts the focus first and always keeps nsfw negative', () => {
