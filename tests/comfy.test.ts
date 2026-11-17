@@ -19,7 +19,7 @@ const NODES: Record<string, string[]> = {
   VAEDecode: ['samples', 'vae'], SaveImage: ['images', 'filename_prefix'],
   VAEEncode: ['pixels', 'vae'], ImageScale: ['image', 'upscale_method', 'width', 'height', 'crop'], RepeatLatentBatch: ['samples', 'amount'],
   // comfyui_controlnet_aux (installed on Comfy Cloud)
-  DWPreprocessor: ['image'], PreviewImage: ['images'],
+  DWPreprocessor: ['image'], PreviewImage: ['images'], SetLatentNoiseMask: ['samples', 'mask'],
 };
 // outputs per node class (to check link indices)
 const OUTPUTS: Record<string, number> = { CheckpointLoaderSimple: 3, ControlNetApplyAdvanced: 2 };
@@ -98,7 +98,9 @@ describe('ComfyUI generator', () => {
       expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
       expect(img).toEqual(decodePng(srv.picture));
       const g = srv.seen.graph!, kinds = Object.values(g).map((n) => n.class_type);
-      expect(kinds.filter((k) => k === 'ControlNetApplyAdvanced')).toHaveLength(3);
+      // the three ControlNets on the people's prompts, and again (weaker depth) on the background's
+      expect(kinds.filter((k) => k === 'ControlNetApplyAdvanced')).toHaveLength(6);
+      expect(kinds.filter((k) => k === 'ControlNetLoader')).toHaveLength(3);
       expect(kinds).toContain('ModelSamplingDiscrete');
       // a regional prompt per visible person, and the whole-picture prompt outside them all
       const people = m.regions.filter((r) => r.kind === 'person').length;

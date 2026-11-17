@@ -58,7 +58,9 @@ export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceA
     const back = angle !== undefined && angle > 120;
     return {
       id: a.id,
-      tags: tags([a.prompt.tag, a.prompt.series, ...a.prompt.look, ...a.prompt.outfit, ...(back ? [] : a.prompt.expression), ...viewTags(angle)]),
+      // image-board models lean to drawing girls; "male focus" is the board's tag for a male subject, and in a
+      // person's own region it says this one is the man (with "1boy" alone the boy came out a girl 3 times in 4)
+      tags: tags([a.prompt.tag, a.prompt.series, ...a.prompt.look, ...(a.prompt.look.includes('1boy') ? ['male focus'] : []), ...a.prompt.outfit, ...(back ? [] : a.prompt.expression), ...viewTags(angle)]),
     };
   });
   const sceneTags = [

@@ -28,6 +28,16 @@ export const DEFAULT_CONTROL: Record<'depth' | 'lineart' | 'pose', ControlStreng
   lineart: { strength: 0.45, start: 0, end: 0.5 },
   pose: { strength: 1, start: 0, end: 0.9 },
 };
+/**
+ * Outside the people and effects (each region's prompt carries its own ControlNets): the gray box there is a
+ * stand-in (a room's bare walls), so its depth only sets the layout early. At the people's 0.8 the bare walls held
+ * against the prompt's windows and blackboard, and they came out painted flat onto the wall (frames inside frames).
+ */
+export const BACKGROUND_CONTROL: Record<'depth' | 'lineart' | 'pose', ControlStrength> = {
+  depth: { strength: 0.5, start: 0, end: 0.4 },
+  lineart: { strength: 0.45, start: 0, end: 0.5 },
+  pose: { strength: 1, start: 0, end: 0.9 },
+};
 
 export interface WorkflowInput {
   models: ComfyModels;
@@ -42,6 +52,13 @@ export interface WorkflowInput {
   masks: Record<string, string>;
   sampling?: Partial<ComfySampling>;
   control?: Partial<typeof DEFAULT_CONTROL>;
+  /** outside the people and effects (default BACKGROUND_CONTROL) */
+  backgroundControl?: Partial<typeof BACKGROUND_CONTROL>;
+  /**
+   * redraw each person in their mask with only their own prompt, at this denoise (0 = no). It sharpens who they are
+   * (a back's ponytail); it does not change a gender the first pass got wrong (tried up to 0.65)
+   */
+  refine?: number;
   /** how far each person's mask grows, as a fraction of the image's long side */
   maskGrow?: number;
   /** pictures per run (one seed, a batch) */
@@ -81,41 +98,61 @@ export function workflow(input: WorkflowInput): Graph {
   let negative = text([...input.prompt.negative, ...(input.models.negative ?? [])]);
   const grow = Math.round((input.maskGrow ?? 0.02) * Math.max(input.width, input.height));
 
-  let positive: Ref | null = null, union: Ref | null = null;
+  // the ControlNets, loaded once, applied to a positive (and to the negative once, with the subjects')
+  const nets = (['depth', 'lineart', 'pose'] as const).flatMap((kind) => {
+    const image = input.images[kind], net = input.models.controlnet[kind];
+    return image && net ? [{ kind, image: node('LoadImage', { image }), cn: node('ControlNetLoader', { control_net_name: net }) }] : [];
+  });
+  const control = (pos: Ref, neg: Ref, strengths: typeof ctl): [Ref, Ref] => {
+    for (const { kind, image, cn } of nets) {
+      const c = strengths[kind];
+      const applied = node('ControlNetApplyAdvanced', { positive: pos, negative: neg, control_net: cn, image, strength: c.strength, start_percent: c.start, end_percent: c.end, vae });
+      pos = out(applied, 0); neg = out(applied, 1);
+    }
+    return [pos, neg];
+  };
+  const plainNegative = negative;
+
+  let subjects: Ref | null = null, union: Ref | null = null;
+  const people: { cond: Ref; mask: Ref }[] = [];
   // people and effects alike: their tags inside their own region
   for (const c of [...input.prompt.characters, ...input.prompt.effects]) {
     const maskName = input.masks[c.id];
     if (!maskName || !c.tags.length) continue;
     let mask = node('LoadImageMask', { image: maskName, channel: 'red' });
     if (grow > 0) mask = node('GrowMask', { mask, expand: grow, tapered_corners: true });
-    const local = node('ConditioningSetMask', { conditioning: text([...quality, ...c.tags, ...setting]), mask, strength: 1, set_cond_area: 'default' });
-    positive = positive ? node('ConditioningCombine', { conditioning_1: positive, conditioning_2: local }) : local;
+    const cond = text([...quality, ...c.tags, ...setting]);
+    if (input.prompt.characters.includes(c)) people.push({ cond, mask });
+    const local = node('ConditioningSetMask', { conditioning: cond, mask, strength: 1, set_cond_area: 'default' });
+    subjects = subjects ? node('ConditioningCombine', { conditioning_1: subjects, conditioning_2: local }) : local;
     union = union ? node('MaskComposite', { destination: union, source: mask, x: 0, y: 0, operation: 'add' }) : mask;
   }
-  if (positive && union) {
+  let positive: Ref;
+  if (subjects && union) {
+    [subjects, negative] = control(subjects, negative, ctl);
     // outside the people the head count would only add more of them (small figures in the windows)
-    const background = node('ConditioningSetMask', { conditioning: text([...quality, ...setting]), mask: node('InvertMask', { mask: union }), strength: 1, set_cond_area: 'default' });
-    positive = node('ConditioningCombine', { conditioning_1: positive, conditioning_2: background });
-  } else positive = text([...quality, ...input.prompt.scene, ...input.prompt.characters.flatMap((c) => c.tags), ...input.prompt.effects.flatMap((e) => e.tags)]);
-
-  for (const kind of ['depth', 'lineart', 'pose'] as const) {
-    const image = input.images[kind], net = input.models.controlnet[kind];
-    if (!image || !net) continue;
-    const loaded = node('LoadImage', { image });
-    const cn = node('ControlNetLoader', { control_net_name: net });
-    const applied = node('ControlNetApplyAdvanced', {
-      positive, negative, control_net: cn, image: loaded, strength: ctl[kind].strength, start_percent: ctl[kind].start, end_percent: ctl[kind].end, vae,
-    });
-    positive = out(applied, 0); negative = out(applied, 1);
+    let background = node('ConditioningSetMask', { conditioning: text([...quality, ...setting]), mask: node('InvertMask', { mask: union }), strength: 1, set_cond_area: 'default' });
+    [background] = control(background, plainNegative, { ...BACKGROUND_CONTROL, ...input.backgroundControl });
+    positive = node('ConditioningCombine', { conditioning_1: subjects, conditioning_2: background });
+  } else {
+    positive = text([...quality, ...input.prompt.scene, ...input.prompt.characters.flatMap((c) => c.tags), ...input.prompt.effects.flatMap((e) => e.tags)]);
+    [positive, negative] = control(positive, negative, ctl);
   }
 
   const init = input.images.init && (input.initDenoise ?? 1) < 1;
   const batch = Math.max(1, Math.round(input.batch ?? 1));
   let latent = init ? node('VAEEncode', { pixels: node('ImageScale', { image: node('LoadImage', { image: input.images.init }), upscale_method: 'bilinear', width: input.width, height: input.height, crop: 'disabled' }), vae }) : node('EmptyLatentImage', { width: input.width, height: input.height, batch_size: batch });
   if (init && batch > 1) latent = node('RepeatLatentBatch', { samples: latent, amount: batch });
-  const sampled = node('KSampler', {
+  let sampled = node('KSampler', {
     model, positive, negative, latent_image: latent, seed: s.seed, steps: s.steps, cfg: s.cfg, sampler_name: s.sampler, scheduler: s.scheduler, denoise: init ? input.initDenoise! : 1,
   });
+  // each person redrawn in their own mask with only their own prompt and the subjects' ControlNets (nobody moves)
+  if ((input.refine ?? 0) > 0) for (const p of people) {
+    const [pos, neg] = control(p.cond, plainNegative, ctl);
+    sampled = node('KSampler', {
+      model, positive: pos, negative: neg, latent_image: node('SetLatentNoiseMask', { samples: sampled, mask: p.mask }), seed: s.seed + 1, steps: s.steps, cfg: s.cfg, sampler_name: s.sampler, scheduler: s.scheduler, denoise: input.refine!,
+    });
+  }
   const decoded = node('VAEDecode', { samples: sampled, vae });
   node('SaveImage', { images: decoded, filename_prefix: 'frameseeker' }, OUTPUT_NODE);
   // the people in each picture, measured by a pose detector (DWPose, comfyui_controlnet_aux) for check.ts

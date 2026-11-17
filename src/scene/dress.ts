@@ -65,6 +65,11 @@ export function dress(s: Solved): World {
     // window wall on one side: low wall + top band (windows between)
     const wp = add(c, mul(across, hx));
     keep.push(box([wp[0], 0.45, wp[2]], [0.12, 0.45, hz], yawAlong), box([wp[0], h - 0.3, wp[2]], [0.12, 0.3, hz], yawAlong));
+    // mullions: real windows have frames (a bare opening let the image model invent them, frames inside frames)
+    for (let z = -hz + 1.8; z < hz - 0.5; z += 1.8) {
+      const m = add(wp, mul(axis, z));
+      keep.push(box([m[0], (0.9 + h - 0.6) / 2, m[2]], [0.1, (h - 0.6 - 0.9) / 2, 0.05], yawAlong, true));
+    }
     wall(-hx, 0, 0.12, hz); wall(0, hz, hx, 0.12); wall(0, -hz, hx, 0.12);
     keep.push(box([c[0], h + 0.1, c[2]], [hx + 4, 0.1, hz + 4], yawAlong));
     if (kind === 'room') for (let k = 0; k < 6; k++) { const p = add(c, add(mul(axis, (rand() - 0.5) * 2 * (hz - 1)), mul(across, (rand() - 0.5) * 2 * (hx - 1.2)))); keep.push(box([p[0], 0.38, p[2]], [0.6, 0.38, 0.3], yawAlong)); }
