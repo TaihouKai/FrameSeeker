@@ -45,7 +45,6 @@ export const RULE_HINTS: Record<string, string> = {
   subject_size: 'the focus is tiny or huge in every good shot: things that must be in frame are too far apart, or too close',
   face: 'the focus faces away from where good cameras stand',
   lead_room: 'no space in front of where the focus faces',
-  joint_cut: 'people are cropped at the joints',
   overlap: 'the people overlap on the screen: separate them',
   aspect: 'the format does not fit the shot',
   merger: "something thin rises out of the focus's head",

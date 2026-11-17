@@ -2,6 +2,11 @@
 
 **A shot planner: from a moment in a story to camera placements and structure maps for any image renderer.**
 
+> [!NOTE]
+> **FrameSeeker is not an image generator.** Its output is a decision, where the camera stands, how high, which lens,
+> who falls where in the frame, and the maps that carry that decision to a renderer. The picture on the right below
+> was drawn by an existing image model from those maps; any renderer that can follow depth and pose can be used.
+
 ![left: the camera FrameSeeker chose, on a gray-box stage; right: an image model drawing that shot from its structure maps](docs/rendered/classroom-talk-1.jpg)
 
 *Left: the camera FrameSeeker chose, on a gray-box stage it built from the scene. Right: an image model (SDXL +
@@ -20,9 +25,9 @@ camera height, angle, lens, what frames the subject. That part is geometry, so i
 
 Reference frames from anime episodes are rebuilt as gray-box scenes with the camera that shot them; the question
 is where the director's camera ranks among the search's random valid cameras. On six **held-out** episodes, each
-scored once with the scorer frozen beforehand (four with earlier versions, two with the current one):
+scored once with the scorer frozen beforehand (the latest two with the version of `6c7a742`):
 
-| Director's camera in the top 5% | All held-out (6 episodes) | Current version (2 episodes) |
+| Director's camera in the top 5% | All held-out (6 episodes) | Latest held-out run (2 episodes) |
 |---|---|---|
 | **FrameSeeker's scorer** | **49 / 89 shots (55%)** | **13 / 30 (43%)** |
 | Baseline: Liu et al. 2010's composition score (the published method), same hard constraints, same cameras | 6 / 89 (7%) | 4 / 30 (13%) |
@@ -223,11 +228,16 @@ terms in [0, 1] combined by a weighted geometric mean, each from a published rul
   size (Liu, Chen, Wolf, Cohen-Or 2010, with the paper's constants);
 - **shot scale**: the frequencies of film shot scales (Cutting 2015, 13 956 frames from 48 films); action shots blend
   these with reference action shots;
-- **face angle**: how often reference shots show the front, three-quarter and back, over a uniform camera;
+- **face angle**: how often reference shots show the front, a profile, three quarters from behind and the back,
+  over the search's random cameras (117 shots; the square root of the ratio, as the face angle is correlated with
+  other terms);
 - **camera tilt**, the same way: near top-down shots (over 45° down) are 2 of 88 reference shots against 13% of
   random cameras; other tilts are as common as chance, or too rare among random cameras to judge;
-- **framing, lead room, foreshortening** of the action line, **joint cuts** on the subject, **occlusion** of the
-  subject by nearer people or glass (Bares et al. 2000), **mergers**.
+- **framing, lead room, foreshortening** of the action line, **occlusion** of the subject by nearer people or glass
+  (Bares et al. 2000), **mergers**.
+
+Rules the data did not support are left out. "Never crop the subject at a joint" (Katz) was a term until the
+reference shots showed, within each shot scale, a joint at the frame's edge as often as random cameras do.
 
 The weights depend on the shot's intent (scale, action, emotion, reveal).
 
@@ -263,8 +273,8 @@ than a new series would be; their frames themselves were never seen.
 | Log Horizon ep 4 | Satelight | `763dc6c` | 5 / 14 | 0 / 14 | 0 / 14 | 5 / 14 |
 | Mahouka ep 22 | Madhouse | `0d54cc0` | 12 / 15 | 1 / 15 | 0 / 15 | 4 / 15 |
 | GATE ep 6 | A-1 Pictures | `0d54cc0` | 11 / 15 | 0 / 15 | 0 / 15 | 1 / 15 |
-| Hyouka ep 16 | Kyoto Animation | `6c7a742` (current) | 10 / 15 | 4 / 15 | 1 / 15 | 3 / 15 |
-| Mahouka ep 25 | Madhouse | `6c7a742` (current) | 3 / 15 | 0 / 15 | 0 / 15 | 0 / 15 |
+| Hyouka ep 16 | Kyoto Animation | `6c7a742` | 10 / 15 | 4 / 15 | 1 / 15 | 3 / 15 |
+| Mahouka ep 25 | Madhouse | `6c7a742` | 3 / 15 | 0 / 15 | 0 / 15 | 0 / 15 |
 | **Total** | | | **49 / 89 (55%)** | **6 / 89 (7%)** | **2 / 89 (2%)** | 16 / 89 |
 
 The baselines were computed with each frozen commit's own code, on the same cameras. Median percentile per episode
@@ -275,26 +285,36 @@ Mahouka ep 25 (3 / 15) is the weakest episode so far. Its misses are the known w
 profiles (5 shots lose most on the face-angle term), small figures in wide shots, subjects cut at a joint by the
 frame's edge, and one near top-down shot whose pitch had to be estimated. The scorer was not changed for it.
 
-**The six episodes the current scorer was tuned on — in-sample, for reference.**
+**After the latest held-out run** the two episodes joined the tuning set (eight episodes, 119 shots), and two terms
+were revised from the data: the face-angle table re-measured against the search's random cameras, and the joint-cut
+term dropped (see [the scorer](#the-camera-scorer)). With no unseen episodes left, the change was checked by
+leave-one-episode-out cross-validation (each table estimated without the episode it is tested on): 75 / 119 in the
+top 5% against 72 / 119 for the version before, no episode worse. Five variants were tried and the best kept, so
+that gain is somewhat optimistic; **the current version has no held-out measurement of its own yet.**
 
-| On all 88 rebuilt shots (89 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
+**The eight episodes the current scorer was tuned on — in-sample, for reference.**
+
+| On all 118 rebuilt shots (119 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
 |---|---|---|---|
-| Director's camera in the top 5% | 59 (67%) | 8 (9%) | 6 (7%) |
-| Median percentile | 98% | 55% | 65% |
-| Director's camera among the search's top 3 | 24 | 6 | 7 |
+| Director's camera in the top 5% | 75 (64%) | 12 (10%) | 7 (6%) |
+| Median percentile | 98% | 55% | 66% |
+| Director's camera among the search's top 3 | 38 | 9 | 8 |
 
 **What this says, and what it does not.**
 - Neither picture-plane measure, the published one or its simplest rule, separates the director's camera from the
   others: both sit near chance. That is not a fault of Liu et al.'s method, which scores how a photograph is
   arranged on its plane; choosing a camera is mostly about what that plane cannot see: how far, how high, from
   which side, at what tilt. The scorer's other terms (shot scale, face angle, tilt, occlusion, …) carry the signal.
-- Each held-out figure belongs to the version frozen for it. The current version's own figure is 13 / 30, from two
-  episodes of series already used for tuning.
+- Each held-out figure belongs to the version frozen for it; the latest (13 / 30) comes from two episodes of series
+  already used for tuning.
 - 89 held-out shots from six episodes is a small sample, and every episode is anime.
+- Backs and wide shots stay weak, and the data says why: directors choose them less often than a random camera
+  would, so a prior learned from what directors usually do ranks them low. Telling when a back is the right shot
+  (someone looking at what the shot is about) needs information the scene does not carry yet.
 - "Top 3" is a harsh measure: there is usually more than one good camera, and the search's best is often a
   different, equally valid one (GATE: 11 / 15 in the top 5%, 1 / 15 in the top 3).
-- Known weak spots: backs and wide establishing shots; the shot scale of action scenes; a person lying down can be
-  "visible" from a camera that cannot read them.
+- Other known weak spots: the shot scale of action scenes; a person lying down can be "visible" from a camera that
+  cannot read them.
 
 `npm run eval` reproduces the all-episode numbers (`--objective liu` or `--objective thirds` for the baselines),
 given the local annotations.
@@ -358,5 +378,5 @@ when an effect is in frame. Example scenes are in `scenes/`, example stories in 
 ## Status
 
 Phases 1–5 work end to end and are deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
-adapter is archived. Next: the weak spots the held-out runs keep showing (backs, wide shots, joint cuts), then new
-episodes to measure the change.
+adapter is archived. Next: a held-out run of the current scorer on unseen episodes, and the context a back shot
+needs (what the person is looking at).

@@ -13,21 +13,21 @@
   },
   "shots": [
    {
-    "total": 0.501,
+    "total": 0.481,
     "height_m": 0.75,
     "pitch_deg": 5,
     "focal_mm": 14,
     "aspect": "portrait"
    },
    {
-    "total": 0.486,
+    "total": 0.464,
     "height_m": 1.03,
     "pitch_deg": 5,
     "focal_mm": 24,
     "aspect": "landscape"
    },
    {
-    "total": 0.407,
+    "total": 0.389,
     "height_m": 19.51,
     "pitch_deg": -40,
     "focal_mm": 18,
@@ -64,23 +64,23 @@
   },
   "shots": [
    {
-    "total": 0.913,
-    "height_m": 0.85,
-    "pitch_deg": 19,
-    "focal_mm": 50,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.91,
-    "height_m": 1.12,
+    "total": 0.965,
+    "height_m": 1.34,
     "pitch_deg": 6,
     "focal_mm": 50,
     "aspect": "landscape"
    },
    {
-    "total": 0.89,
-    "height_m": 1.67,
-    "pitch_deg": -10,
+    "total": 0.893,
+    "height_m": 1.2,
+    "pitch_deg": 10,
+    "focal_mm": 35,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.85,
+    "height_m": 1.66,
+    "pitch_deg": -7,
     "focal_mm": 35,
     "aspect": "landscape"
    }
@@ -95,11 +95,11 @@
     "kind": "person"
    },
    {
-    "id": "env-ceiling",
+    "id": "env-wall",
     "kind": "environment"
    },
    {
-    "id": "env-wall",
+    "id": "env-ceiling",
     "kind": "environment"
    },
    {
@@ -119,24 +119,24 @@
   },
   "shots": [
    {
-    "total": 0.787,
-    "height_m": 0.31,
-    "pitch_deg": 5,
+    "total": 0.766,
+    "height_m": 0.41,
+    "pitch_deg": 8,
     "focal_mm": 35,
     "aspect": "portrait"
    },
    {
-    "total": 0.78,
-    "height_m": 0.7,
-    "pitch_deg": 3,
-    "focal_mm": 35,
+    "total": 0.757,
+    "height_m": 0.76,
+    "pitch_deg": 4,
+    "focal_mm": 28,
     "aspect": "portrait"
    },
    {
-    "total": 0.767,
-    "height_m": 0.51,
-    "pitch_deg": 13,
-    "focal_mm": 24,
+    "total": 0.71,
+    "height_m": 3.7,
+    "pitch_deg": -24,
+    "focal_mm": 28,
     "aspect": "portrait"
    }
   ],
@@ -147,6 +147,10 @@
    },
    {
     "id": "tank2",
+    "kind": "structure"
+   },
+   {
+    "id": "tank5",
     "kind": "structure"
    },
    {
@@ -177,23 +181,23 @@
   },
   "shots": [
    {
-    "total": 0.78,
-    "height_m": 5.95,
-    "pitch_deg": 17,
-    "focal_mm": 28,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.728,
-    "height_m": 3.56,
-    "pitch_deg": 42,
+    "total": 0.758,
+    "height_m": 20.81,
+    "pitch_deg": -7,
     "focal_mm": 18,
     "aspect": "landscape"
    },
    {
-    "total": 0.721,
-    "height_m": 20.9,
-    "pitch_deg": -7,
+    "total": 0.736,
+    "height_m": 4.1,
+    "pitch_deg": 16,
+    "focal_mm": 28,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.718,
+    "height_m": 3.11,
+    "pitch_deg": 41,
     "focal_mm": 18,
     "aspect": "landscape"
    }
@@ -226,25 +230,25 @@
   },
   "shots": [
    {
-    "total": 0.943,
-    "height_m": 1.6,
-    "pitch_deg": -1,
+    "total": 0.929,
+    "height_m": 1.43,
+    "pitch_deg": 1,
     "focal_mm": 85,
     "aspect": "landscape"
    },
    {
-    "total": 0.908,
-    "height_m": 0.56,
+    "total": 0.883,
+    "height_m": 0.54,
     "pitch_deg": 24,
     "focal_mm": 18,
     "aspect": "portrait"
    },
    {
-    "total": 0.88,
-    "height_m": 1.62,
-    "pitch_deg": -7,
-    "focal_mm": 50,
-    "aspect": "landscape"
+    "total": 0.877,
+    "height_m": 1.12,
+    "pitch_deg": 9,
+    "focal_mm": 24,
+    "aspect": "portrait"
    }
   ],
   "regions": [
@@ -270,23 +274,23 @@
   },
   "shots": [
    {
-    "total": 0.865,
-    "height_m": 1.23,
-    "pitch_deg": 3,
+    "total": 0.856,
+    "height_m": 1.43,
+    "pitch_deg": -2,
     "focal_mm": 85,
     "aspect": "landscape"
    },
    {
-    "total": 0.861,
-    "height_m": 1.4,
-    "pitch_deg": 5,
-    "focal_mm": 50,
+    "total": 0.853,
+    "height_m": 1.24,
+    "pitch_deg": 8,
+    "focal_mm": 35,
     "aspect": "landscape"
    },
    {
-    "total": 0.86,
-    "height_m": 1.89,
-    "pitch_deg": -13,
+    "total": 0.848,
+    "height_m": 2.07,
+    "pitch_deg": -14,
     "focal_mm": 85,
     "aspect": "landscape"
    }
@@ -309,24 +313,24 @@
   },
   "shots": [
    {
-    "total": 0.821,
-    "height_m": 0.39,
-    "pitch_deg": 11,
-    "focal_mm": 50,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.764,
-    "height_m": 0.43,
-    "pitch_deg": 17,
-    "focal_mm": 35,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.76,
+    "total": 0.899,
     "height_m": 0.32,
-    "pitch_deg": 9,
+    "pitch_deg": 12,
     "focal_mm": 85,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.758,
+    "height_m": 0.32,
+    "pitch_deg": 8,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.708,
+    "height_m": 1.3,
+    "pitch_deg": 2,
+    "focal_mm": 50,
     "aspect": "landscape"
    }
   ],
@@ -344,19 +348,7 @@
     "kind": "structure"
    },
    {
-    "id": "base3",
-    "kind": "structure"
-   },
-   {
-    "id": "pod1",
-    "kind": "structure"
-   },
-   {
     "id": "pod2",
-    "kind": "structure"
-   },
-   {
-    "id": "pod3",
     "kind": "structure"
    },
    {

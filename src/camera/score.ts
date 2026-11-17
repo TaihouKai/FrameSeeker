@@ -7,15 +7,15 @@ import { KP } from '../shared/skeleton.ts';
 import type { Intent, Solved, SolvedActor } from '../scene/index.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
-export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;
+export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'overlap', 'aspect', 'merger'] as const;
 export type Term = typeof TERMS[number];
 
 /** Weights by intent (starting values). */
 export const WEIGHTS: Record<Intent, Record<Term, number>> = {
-  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, tilt: 1, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
-  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1.5, joint_cut: 1, overlap: 1.5, aspect: 0.5, merger: 1 },
-  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, tilt: 2, lead_room: 1, joint_cut: 1.5, overlap: 0.5, aspect: 0.5, merger: 1.5 },
-  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, tilt: 1, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1.5, overlap: 1.5, aspect: 0.5, merger: 1 },
+  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, tilt: 2, lead_room: 1, overlap: 0.5, aspect: 0.5, merger: 1.5 },
+  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
 };
 
 /**
@@ -38,11 +38,16 @@ const SCALE_SIZE: [number, number, number, number] = [0.02, 0.05, 0.22, 0.4];
 /** An establishing shot with nothing big in it: extreme long to long shot (XLS 0.45 – LS 0.92 by SHOT_SCALES). */
 const WIDE_SIZE: [number, number, number, number] = [0.015, 0.2, 1.0, 1.6];
 /**
- * Face angle (0 = towards the camera, 180 = the back): reference shots (43 dev shots) over a
- * uniform camera, normalized by the front bin: under 60° 27/43 vs 1/3 → 1; 60–100° 8/43 vs 2/9 → 0.44;
- * over 100° 8/43 vs 4/9 → 0.22. Piecewise linear between the bin centres.
+ * Face angle (0 = towards the camera, 180 = the back): the 117 scored dev shots (8 episodes) over the valid random
+ * cameras of the search's sampler on the same scenes, half a count per bin, normalized by the front bin:
+ * 0–30° 69 shots vs 20.2 expected; 30–60° 15 vs 20.4 → 0.23; 60–100° 15 vs 26.0 → 0.17; 100–140° 3 vs 25.8 → 0.04;
+ * 140–180° 15 vs 24.6 → 0.18 (a back is a choice films make; three quarters from behind almost never). Tempered
+ * (square root): the face angle is correlated with other terms (shot scale, lead room), and the raw ratios counted
+ * that twice: under leave-one-episode-out cross-validation the raw table lost 9 shots of 119, the tempered one gained
+ * 3 with no episode worse (§6.6.11). Piecewise linear between the bin centres. (Before: 43 shots over a uniform
+ * camera, [[30, 1], [80, 0.44], [140, 0.22]].)
  */
-export const FACE_BINS: [angle: number, score: number][] = [[30, 1], [80, 0.44], [140, 0.22]];
+export const FACE_BINS: [angle: number, score: number][] = [[15, 1], [45, 0.48], [80, 0.42], [120, 0.2], [160, 0.42]];
 export function faceScore(angle: number): number {
   const b = FACE_BINS;
   if (angle <= b[0][0]) return b[0][1];
@@ -275,8 +280,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     const dx = ahead.u - head.u, dl = Math.hypot(dx, ahead.v - head.v);
     terms.lead_room = dl < 0.01 ? 0.6 : Math.min(1, Math.max(0, 0.5 + (dx / dl) * (0.5 - head.u) * 2));
   } else terms.lead_room = 0.6;
-  // never crop the subject at a joint (Katz: framing the figure). The subject only: the reference shots crop the
-  // people around it at the frame's edge freely (10 of 24 lost points when every person counted)
+  // joints of the subject near the frame's edge (counted for the measurement below)
   let cuts = 0;
   {
     const ps = ctx.focus.points.map((p) => project(f, p));
@@ -286,9 +290,11 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
       if (p && (Math.abs(p.u) < 0.025 || Math.abs(1 - p.u) < 0.025 || Math.abs(p.v) < 0.025 || Math.abs(1 - p.v) < 0.025)) cuts++;
     }
   }
-  // a preference, not a veto: 12 of 43 reference shots measure a cut joint (their rebuild is ±20 px, more than the
-  // 2.5% tolerance), so one cut costs a quarter and the term stops at a half
-  terms.joint_cut = Math.max(0.5, 1 - 0.25 * cuts);
+  // Measured only, not scored. Katz's rule (never crop the subject at a joint) found no support at the rebuild's
+  // precision (±20 px against a 2.5% tolerance): within the same shot scale the reference shots have a joint near
+  // the frame's edge as often as random cameras (0.9–1.7: 39% vs 35%; 1.7–3: 31% vs 29%), so the old penalty only
+  // pushed the shot scale twice (§6.6.11).
+  info.joint_cuts = cuts;
   // the subject should not be covered by someone nearer (Bares et al. 2000: minimize the primary object's occlusion;
   // others overlapping each other adds depth and is fine)
   const box2 = (a: SolvedActor) => bbox(a.points.map((p) => project(f, p)).filter(Boolean) as { u: number; v: number }[]);

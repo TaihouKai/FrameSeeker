@@ -56,11 +56,13 @@ describe('reference rebuild (single-view metrology)', () => {
     expect(shotScaleScore(2.15)).toBeCloseTo(1, 6);
   });
 
-  it('RF3 face angle: the front preferred, three-quarter less, a back still a choice (never zero)', () => {
+  it('RF3 face angle (measured on the dev shots): the front best; three quarters from behind the rarest; a back still a choice, never zero', () => {
     expect(faceScore(0)).toBe(1);
-    expect(faceScore(30)).toBe(1);
-    expect(faceScore(80)).toBeCloseTo(0.44, 6);
-    expect(faceScore(180)).toBeCloseTo(0.22, 6);
-    for (let a = 0; a < 180; a += 5) expect(faceScore(a + 5)).toBeLessThanOrEqual(faceScore(a));
+    expect(faceScore(15)).toBe(1);
+    const front = faceScore(10), profile = faceScore(80), threeQuarterBack = faceScore(120), back = faceScore(175);
+    expect(profile).toBeLessThan(front);
+    expect(threeQuarterBack).toBeLessThan(Math.min(profile, back));
+    expect(back).toBeGreaterThan(0.3);
+    for (let x = 0; x <= 180; x += 5) expect(faceScore(x)).toBeGreaterThan(0);
   });
 });
