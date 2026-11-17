@@ -92,7 +92,16 @@ intents, the search's best camera:
   *given this intent, which device did the director use?*, and the reference frames need their intent annotated from
   the story around them (the shots before and after), not from the frame alone.
 - **Sequences.** Many intents live across cuts (*intensify*: each shot closer); FrameSeeker plans one shot at a time.
-- **Feel.** Emotional tone (tension, warmth) maps mostly to lighting and lens, which the gray box cannot show yet.
+- **Feel and light.** Emotional tone (tension, warmth) is an intent; light is mostly how it is served. Two kinds:
+  - *Mood light* (low key or high key, warm or cold, contrast) is set relative to the camera and the subject (the
+    classic three-point setup: key about 45° to one side of the lens, back light behind the subject facing it). So it
+    comes **after** the camera is chosen: a lighting layer (e.g. Blender) lights the chosen shot from the intent's
+    feel. The camera search need not know about it. (The user's proposal, 2026-11-18.)
+  - *Light that belongs to the world* (the sun, a window, a street lamp, the glow of a blast) is placed by the story
+    and constrains the camera: a silhouette needs the camera facing the light. It is a scene fact, and "silhouette",
+    "backlit" and the like are devices scored during the search, not added afterwards.
+  So: intent (feel) → camera search (world lights as facts, light devices as preferences) → lighting layer (mood light
+  for the chosen camera) → render.
 - **Extraction** (`extractIntent`) is written and checked against the scene's ids, but not yet run on stories.
 
 ## Gaze: status
