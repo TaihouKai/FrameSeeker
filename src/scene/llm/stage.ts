@@ -1,4 +1,4 @@
-// Stage 0b (DESIGN.md §4.3.1): the model, as director and layout artist, proposes changes to the stage; code decides
+// Stage 0b: the model, as director and layout artist, proposes changes to the stage; code decides
 // which ones stand. A proposal may only add set pieces or move what the text leaves open, must name its purpose,
 // and is refused when it breaks the scene (the solver) or stands in the action's way.
 import { solve } from '../solve.ts';

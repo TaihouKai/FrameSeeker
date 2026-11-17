@@ -1,4 +1,11 @@
 node_modules/
 out/
+# local only: frames, videos, papers, design notes and experiments
 /refs/
 /papers/
+/DESIGN.md
+/CLAUDE.md
+/experiments/
+/eval/refs/
+/stories/clash.txt
+/scenes/clash.json

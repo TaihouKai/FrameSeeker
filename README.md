@@ -5,27 +5,50 @@ what), code builds a gray-box 3D stage of it, a camera search scores thousands o
 composition rules** from the film and photography literature (no AI judge), and the best shots are rendered as
 structure maps (depth, later line art and pose) to steer an image model through ControlNet.
 
-The idea: image models draw well but cannot be told *where the camera is*. A striking frame is mostly composition:
+Why: image models draw well but cannot be told *where the camera is*. A striking frame is mostly composition:
 camera height, angle, lens, what frames the subject. That part is geometry, so it is solved as geometry.
 
 ## Pipeline
 
-| Module | Phases | Entry |
+| Module | Phases | Entry (`index.ts`) |
 |---|---|---|
-| `src/scene/` | 1. text → scene JSON (LLM, faithful) · 2. staging (LLM may only add set pieces; each kept only if the camera score rises) · 3. scene JSON → 3D world (solver + set dressing) | `buildScenes`, `realize` |
+| `src/scene/` | 1. text → scene JSON (LLM, faithful to the text) · 2. staging: the LLM may only *add* set pieces, and each one is kept only if the camera score rises · 3. scene JSON → 3D world (relation solver + set dressing) | `buildScenes`, `realize` |
 | `src/camera/` | 4. camera search scored by composition rules · 5. 2D structure maps of each shot | `shoot`, `maps`, `rate` |
 | `src/generate/` | 6. structure maps + prompt → image backend (ComfyUI / NovelAI: **stubs for now**) | `promptOf`, `Generator` |
 
-`src/pipeline.ts` wires them; each module talks to the next only through its `index.ts`, so any one can be replaced.
+`src/pipeline.ts` wires them. Each module talks to the next only through its `index.ts`, so any one can be swapped.
+Staging needs the camera's score; it gets it as an injected function, so the scene module never imports the camera.
 
-## Is the scorer any good?
+## The scorer
 
-Measured against real directors: frames sampled at fixed intervals from anime episodes (no cherry-picking) are
-rebuilt as gray-box scenes by single-view metrology, and the director's camera is ranked among random valid cameras.
-On four held-out episodes from four studios, with the scorer frozen before each run, 36–80% of the directors' shots
-rank in the top 5%. The latest version scored 80% and 73% on the two episodes tested after it was frozen. Method,
-numbers and known weaknesses are in [DESIGN.md](DESIGN.md) §6.6 (in Chinese). The frames themselves are not in
-the repository, only the hand annotations (`eval/refs/`).
+Hard constraints (the subject and the payoff visible, the action line not running into the lens, …), then terms in
+[0, 1] combined by a weighted geometric mean, each from a published rule or measured data:
+
+- picture-plane composition: rule of thirds for subjects and lines, diagonal dominance, visual balance, region size
+  (Liu, Chen, Wolf, Cohen-Or 2010, with the paper's constants);
+- shot scale: the frequencies of film shot scales (Cutting 2015, 13 956 frames from 48 films); action shots blend
+  these with reference action shots;
+- face angle: how often reference shots show the front, three-quarter and back, over a uniform camera;
+- framing, lead room, foreshortening of the action line, joint cuts on the subject, occlusion of the subject by
+  nearer people (Bares et al. 2000), mergers.
+
+## Does it agree with directors?
+
+Frames are sampled every 10 s from anime episodes and filtered by fixed rules (no cherry-picking); 15 per episode
+are annotated by hand (horizon, people's crowns and feet) and rebuilt as gray-box scenes with the camera that shot
+them, by single-view metrology. The measure: where the director's camera ranks among random valid cameras.
+
+Held-out episodes (the scorer frozen before each one, each run once):
+
+| Episode | Studio | Director's shot in the top 5% |
+|---|---|---|
+| Oregairu S1 ep 12 | Brain's Base | 8 / 15 |
+| Log Horizon ep 4 | Satelight | 5 / 14 (action shots wider than expected; fixed after) |
+| Mahouka ep 22 | Madhouse | 12 / 15 |
+| GATE ep 6 | A-1 Pictures | 11 / 15 |
+
+Known weak spots: backs and wide establishing shots; the shot scale of action scenes (two episodes disagree).
+The frames and the annotations stay local; the evaluation code is in `src/eval/`.
 
 ## Run
 
@@ -35,12 +58,12 @@ Node ≥ 24 (runs TypeScript directly, no build), no runtime dependencies.
 npm install
 npm test
 npm run frameseeker -- scenes/reference-truss.json   # phases 3–6 from a scene → out/run-reference-truss/
-npm run frameseeker -- stories/clash.txt             # phases 1–6 (needs VENICE_API_KEY)
-npm run shot -- scenes/clash.json                    # camera search with every score term
-npm run eval                                         # the reference-shot evaluation (needs the frames in refs/)
+npm run frameseeker -- stories/rooftop-chase.txt     # phases 1–6 (needs VENICE_API_KEY)
+npm run shot -- scenes/beam-clash.json               # camera search with every score term
 ```
+
+Each shot comes out as a gray-box preview, a depth map and a prompt.
 
 ## Status
 
-Phases 1–5 work end to end (gray-box preview and depth map). Next: line art / pose / mask maps (M2), then a ComfyUI
-ControlNet workflow (M3). See DESIGN.md §11.
+Phases 1–5 work end to end. Next: line art, pose and region masks; then a ComfyUI ControlNet workflow for phase 6.

@@ -1,4 +1,4 @@
-// The scene JSON (DESIGN.md §4): relations and rough numbers only; the solver (solve.ts) computes exact geometry.
+// The scene JSON: relations and rough numbers only; the solver (solve.ts) computes exact geometry.
 
 export type PlaceKind = 'street' | 'plaza' | 'bridge' | 'rooftop' | 'room' | 'corridor' | 'field' | 'forest' | 'shore' | 'other';
 export type Intent = 'scale' | 'action' | 'emotion' | 'reveal';

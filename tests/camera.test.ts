@@ -25,15 +25,15 @@ describe('camera', () => {
   });
 });
 
-describe('composition search (DESIGN.md §11.5 completion criteria)', () => {
-  it('CS1 reference frame (experiments/08): a found shot is the reference one — low, looking up, the bolt across the frame', () => {
+describe('composition search (calibration)', () => {
+  it('CS1 reference anime frame rebuilt as a gray box: a found shot is the reference one — low, looking up, the bolt across the frame', () => {
     const { ctx } = load('reference-truss');
     const r = search(ctx, { seed: 1, k: 5 });
     const like = r.candidates.filter((c) => c.ev.info.camera_height < 3 && c.ev.info.pitch > 12 && c.ev.info.pitch < 45 && c.ev.info.line_angle > 20 && c.ev.info.line_angle < 60);
     expect(like.length).toBeGreaterThan(0);
   });
 
-  it('CS2 the failures of the experiments lose: looking down the beam is refused; a bland eye-level centred shot from the same place scores clearly lower', () => {
+  it('CS2 the failed compositions of the image-model experiments lose: looking down the beam is refused; a bland eye-level centred shot from the same place scores clearly lower', () => {
     const { s, ctx } = load('beam-clash');
     const beam = s.lines.get('beam')!;
     // 06/07: the beam running away from the lens

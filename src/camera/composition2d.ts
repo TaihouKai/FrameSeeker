@@ -1,4 +1,4 @@
-// Liu, Chen, Wolf, Cohen-Or 2010, "Optimizing Photo Composition" (DESIGN.md §6.6): four composition scores on the
+// Liu, Chen, Wolf, Cohen-Or 2010, "Optimizing Photo Composition": four composition scores on the
 // picture plane — rule of thirds (points and lines), diagonal dominance, visual balance, region size — with the
 // paper's constants. Pure and deterministic: regions and lines come from the projected 3D scene, not from image
 // analysis (the paper detects them with saliency and line detection; we know them exactly).

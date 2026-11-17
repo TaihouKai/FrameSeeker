@@ -1,6 +1,6 @@
 // The text half of a generation request, built deterministically from the scene JSON (what is there, written by the
 // extract step from the story) and the shot (how it is seen, measured by the camera module). The structure maps carry
-// the composition; the prompt only names things. SFW always: `nsfw` is always negative (DESIGN.md §9).
+// the composition; the prompt only names things. SFW always: `nsfw` is always negative.
 import type { Scene } from '../scene/index.ts';
 import type { Shot } from '../camera/index.ts';
 
@@ -20,7 +20,7 @@ export function shotTags(shot: Shot): string[] {
   const t: string[] = [];
   const pitch = shot.info.pitch_deg ?? 0, size = shot.info.subject_size ?? 1, face = shot.info.face_angle ?? 0;
   if (pitch < -25) t.push('from above'); else if (pitch > 12) t.push('from below');
-  // subject_size: person height / frame height (DESIGN.md §6.6.3, Cutting's scales)
+  // subject_size: person height / frame height (Cutting's scales)
   if (size < 0.6) t.push('wide shot', 'scenery'); else if (size < 1.1) t.push('full body'); else if (size < 1.7) t.push('cowboy shot');
   else if (size < 3) t.push('upper body'); else t.push('portrait');
   if (face > 120) t.push('from behind'); else if (face > 60) t.push('from side');

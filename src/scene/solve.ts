@@ -1,4 +1,4 @@
-// Stage 1 (DESIGN.md §5): relations in the scene JSON -> exact geometry. Deterministic; errors are readable.
+// Stage 1: relations in the scene JSON -> exact geometry. Deterministic; errors are readable.
 import { add, dist, lerp, mul, norm, sub, yawDir, yawTo, type V3 } from '../shared/vec.ts';
 import { HEAD, KP, POSES, mirror, toWorld, type Local } from './poses.ts';
 import { cast, type Prim, type World } from '../shared/geom.ts';
@@ -298,7 +298,7 @@ function bodyPrims(a: SolvedActor): Prim[] {
   ];
 }
 
-/** A structure's primitives by its kind (DESIGN.md §5.1 step 4); its front (+Z local) faces `yaw`. */
+/** A structure's primitives by its kind; its front (+Z local) faces `yaw`. */
 function buildStructure(s: Structure, at: V3, yaw: number): SolvedStructure {
   const sz = s.size || {};
   const prims: Prim[] = [];

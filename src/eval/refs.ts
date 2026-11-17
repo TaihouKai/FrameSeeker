@@ -1,4 +1,4 @@
-// Reference shots (DESIGN.md §6.6.2): a frame from a film, annotated by hand in pixels, rebuilt as a gray-box scene
+// Reference shots: a frame from a film, annotated by hand in pixels, rebuilt as a gray-box scene
 // and the camera that took it, by single-view metrology (Criminisi, Reid, Zisserman 2000): the horizon gives the
 // pitch and roll, two vanishing points the focal length, and people of known height the camera height and where
 // they stand. The annotations are measurements; nothing here judges the shot.

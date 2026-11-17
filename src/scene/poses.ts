@@ -1,4 +1,4 @@
-// The pose library (DESIGN.md §5.3): COCO-18 keypoints for a body of height 1, origin between the feet on the
+// The pose library: COCO-18 keypoints for a body of height 1, origin between the feet on the
 // ground, facing +f. Local coordinates are [s, y, f]: s towards the person's own right, y up, f forward.
 // Hand-authored approximations; meant to be reviewed and replaced by poses made in a 3D pose editor.
 import type { V3 } from '../shared/vec.ts';

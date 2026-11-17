@@ -1,5 +1,5 @@
 // npm run refs:select -- [--per 15]
-// The reference sample (DESIGN.md §6.6.2): the frames kept by eval/refs/selection.json, one per shot (K6, from the
+// The reference sample: the frames kept by eval/refs/selection.json, one per shot (K6, from the
 // cuts in refs/<episode>/cuts.txt), then `per` of them at equal intervals. Writes eval/refs/sample.json.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -13,7 +13,7 @@ export const frameTime = (k: number) => (k - 1) * 10 + 5;
 const out: Record<string, { frame: number; t: number; shot: number }[]> = {};
 for (const [ep, { kept }] of Object.entries(sel.episodes)) {
   const cutsFile = `refs/${ep}/cuts.txt`;
-  if (!existsSync(cutsFile)) throw new Error(`${cutsFile} missing (ffmpeg scene detection, DESIGN.md §6.6.2)`);
+  if (!existsSync(cutsFile)) throw new Error(`${cutsFile} missing (ffmpeg scene detection)`);
   const cuts = readFileSync(cutsFile, 'utf8').split(/\s+/).filter(Boolean).map(Number).sort((a, b) => a - b);
   const shotOf = (t: number) => cuts.filter((c) => c <= t).length;
   const seen = new Set<number>();

@@ -1,0 +1,19 @@
+{
+ "version": 1,
+ "place": { "kind": "street", "description": "empty street between glass office towers in a futuristic city", "width": 24 },
+ "time": { "of_day": "sunset", "weather": "clear" },
+ "actors": [
+  { "id": "shooter", "height": 1.55, "pose": "fire_beam_one_hand", "aim": "dodger.head", "place": { "at": [0, 0] },
+    "prompt": { "look": ["long hair"], "outfit": ["coat"], "expression": ["determined"] } },
+  { "id": "dodger", "height": 1.61, "pose": "dodge_head_tilt", "facing": "shooter", "place": { "from": "shooter", "distance": 30, "bearing": "front" },
+    "prompt": { "look": ["short hair"], "outfit": ["school uniform"], "expression": ["surprised", "wide-eyed"] } }
+ ],
+ "structures": [
+  { "id": "tower", "kind": "building", "size": { "floors": 30, "width": 30, "depth": 25 }, "place": { "behind": "dodger", "seen_from": "shooter", "distance": 80 }, "prompt": ["glass office tower", "skyscraper"] }
+ ],
+ "effects": [
+  { "id": "beam", "kind": "beam", "from": "shooter.right_hand", "to": "tower.floor_15", "radius": 0.15, "grazes": { "actor": "dodger", "part": "head", "clearance": 0.25, "side": "left" }, "prompt": ["white beam", "light beam", "glowing"] },
+  { "id": "melt", "kind": "melting", "target": "tower", "prompt": ["melting", "molten metal", "glowing", "steam"] }
+ ],
+ "moment": { "focus": "dodger", "action_line": "beam", "payoff": "melt", "source": "shooter", "intent": "scale", "may_hide": ["shooter"] }
+}

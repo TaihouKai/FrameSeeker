@@ -1,4 +1,4 @@
-// Evaluation A (DESIGN.md §6.6.3): does the scorer rank the camera a film crew chose above the cameras it could have
+// Evaluation A: does the scorer rank the camera a film crew chose above the cameras it could have
 // chosen? For each rebuilt reference shot: the reference camera's score, its percentile among valid random cameras
 // (the search's own prior, in the reference's format), and whether the search's top 3 contain a camera near it.
 import { dist, norm, rng, sub } from '../shared/vec.ts';

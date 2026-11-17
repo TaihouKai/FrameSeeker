@@ -1,4 +1,4 @@
-// Stage 3 scoring (DESIGN.md §6.4): hard constraints, then composition terms in [0, 1], weighted by the shot's intent.
+// Stage 3 scoring: hard constraints, then composition terms in [0, 1], weighted by the shot's intent.
 // Each term names the textbook principle it encodes.
 import { add, dist, lerp, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, corners, inside, type Prim, type World } from '../shared/geom.ts';
@@ -11,7 +11,7 @@ import { composition, type Line2D, type Region2D } from './composition2d.ts';
 export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;
 export type Term = typeof TERMS[number];
 
-/** Weights by intent (DESIGN.md §6.4 table; starting values). */
+/** Weights by intent (starting values). */
 export const WEIGHTS: Record<Intent, Record<Term, number>> = {
   scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
   action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, lead_room: 1.5, joint_cut: 1, overlap: 1.5, aspect: 0.5, merger: 1 },
@@ -24,7 +24,7 @@ const SCALE_SIZE: [number, number, number, number] = [0.02, 0.05, 0.22, 0.4];
 /** An establishing shot with nothing big in it: extreme long to long shot (XLS 0.45 – LS 0.92 by SHOT_SCALES). */
 const WIDE_SIZE: [number, number, number, number] = [0.015, 0.2, 1.0, 1.6];
 /**
- * Face angle (0 = towards the camera, 180 = the back): reference shots (DESIGN.md §6.6.5, 43 dev shots) over a
+ * Face angle (0 = towards the camera, 180 = the back): reference shots (43 dev shots) over a
  * uniform camera, normalized by the front bin: under 60° 27/43 vs 1/3 → 1; 60–100° 8/43 vs 2/9 → 0.44;
  * over 100° 8/43 vs 4/9 → 0.22. Piecewise linear between the bin centres.
  */
@@ -46,7 +46,7 @@ export const SHOT_SCALES: [name: string, size: number, freq: number][] = [
   ['XLS', 0.45, 0.08], ['LS', 0.92, 0.14], ['MLS', 1.33, 0.24], ['MS', 2.15, 0.3], ['MCU', 3.8, 0.16], ['CU', 6.7, 0.06], ['XCU', 12, 0.01],
 ];
 /**
- * Action shots are wider (DESIGN.md §6.6.6–6.6.7): the 12 action reference shots over Cutting's scales, add-one
+ * Action shots are wider: the 12 action reference shots over Cutting's scales, add-one
  * smoothed: XLS 9+1, LS 1+1, MLS 1+1, MS 1+1, MCU/CU/XCU 0+1 (sizes as SHOT_SCALES; only the frequencies differ).
  */
 const ACTION_REFS: Record<string, number> = { XLS: 10, LS: 2, MLS: 2, MS: 2, MCU: 1, CU: 1, XCU: 1 };
@@ -171,7 +171,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     const c = Math.abs(d[0] * f.F[0] + d[1] * f.F[1] + d[2] * f.F[2]);
     alpha = Math.acos(Math.min(1, c)) * 180 / Math.PI;
     info.line_angle = theta; info.line_vs_view = alpha;
-    // a line running nearly at or away from the lens does not read as a line at all (experiments 06/07)
+    // a line running nearly at or away from the lens does not read as a line at all (image-model experiments: beams drawn into the depth)
     if (alpha < 25) return reject('action line runs along the view');
   }
   // must-show things
@@ -235,7 +235,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     : ctx.intent === 'scale' ? tri(info.subject_size, ...WIDE_SIZE)
     : shotScaleScore(info.subject_size, ctx.intent === 'action' ? ACTION_SCALES : SHOT_SCALES);
   // which way the face is seen: the reference shots' frequency over a uniform camera's (a likelihood ratio in three
-  // coarse bins, DESIGN.md §6.6.5), so the front is preferred but a back is a choice films make (19% of them)
+  // coarse bins), so the front is preferred but a back is a choice films make (19% of them)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
   terms.face = faceScore(info.face_angle);
@@ -246,7 +246,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     terms.lead_room = dl < 0.01 ? 0.6 : Math.min(1, Math.max(0, 0.5 + (dx / dl) * (0.5 - head.u) * 2));
   } else terms.lead_room = 0.6;
   // never crop the subject at a joint (Katz: framing the figure). The subject only: the reference shots crop the
-  // people around it at the frame's edge freely (10 of 24 lost points when every person counted, DESIGN.md §6.6.3)
+  // people around it at the frame's edge freely (10 of 24 lost points when every person counted)
   let cuts = 0;
   {
     const ps = ctx.focus.points.map((p) => project(f, p));

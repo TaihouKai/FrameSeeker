@@ -14,7 +14,7 @@ export { SIZE } from './camera.ts';
 
 export interface Shot {
   cam: Cam;
-  /** the score in [0, 1] and its terms (DESIGN.md §6.4–6.6) */
+  /** the score in [0, 1] and its terms */
   total: number;
   terms: Evaluation['terms'];
   /** measurements: camera height, pitch, subject size, face angle, ... */

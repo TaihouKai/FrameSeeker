@@ -1,4 +1,4 @@
-// Staging is kept only where it measurably helps (DESIGN.md §4.3.1): each accepted operation is taken out in turn and
+// Staging is kept only where it measurably helps: each accepted operation is taken out in turn and
 // the plan searched again; an operation whose removal does not lower the best score is dropped. A plan must then beat
 // the bare stage by a margin, or it is not used.
 import type { Op, Plan } from './llm/stage.ts';

@@ -1,5 +1,5 @@
 // Module 3 — generation (phase 6): the shot's structure maps (composition: depth, later lineart and pose) plus the
-// prompt (content) go to an image backend. Backends are stubs for now (DESIGN.md §7.2: ComfyUI workflow with
+// prompt (content) go to an image backend. Backends are stubs for now (ComfyUI workflow with
 // ControlNet on Comfy Cloud or RunPod; NovelAI as an alternative); every call throws NotImplemented.
 import type { ShotMaps } from '../camera/index.ts';
 import type { Image } from '../shared/image.ts';
