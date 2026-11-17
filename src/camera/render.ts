@@ -11,7 +11,13 @@ const LIGHT = norm([0.4, 0.8, 0.3]);
 const ACTOR_COLOURS: [number, number, number][] = [[220, 60, 60], [60, 110, 230], [60, 170, 90], [230, 150, 40], [150, 80, 200], [40, 180, 190]];
 
 /** The gray-box preview: shaded geometry, actors in colours (focus first, red), lines bright, the damage tinted, thirds grid. */
-export function preview(s: Solved, w: World, cam: Cam, scale = 0.5): Image {
+/**
+ * hint: a colour hint for the image model instead (the start of the denoising when the shot has effects, which are too
+ * thin in depth and line art to be drawn otherwise): the sky by the time of day, people neutral grey (not the
+ * preview's red and blue, which would colour their clothes), no skeletons, face marks or grid.
+ */
+export function preview(s: Solved, w: World, cam: Cam, scale = 0.5, opts: { hint?: boolean } = {}): Image {
+  const hint = !!opts.hint, sky = skyOf(hint ? s.scene.time.of_day : undefined);
   const f = frame(cam);
   const W = Math.round(SIZE[cam.aspect].w * scale), H = Math.round(SIZE[cam.aspect].h * scale);
   const px = new Uint8Array(W * H * 3);
@@ -26,14 +32,14 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5): Image {
     let c: [number, number, number];
     if (!hit) {
       const t = Math.max(0, Math.min(1, d[1] * 2));
-      c = [Math.round(200 - 90 * t), Math.round(215 - 60 * t), Math.round(235 - 20 * t)];
+      c = [0, 1, 2].map((k) => Math.round(sky[0][k] + (sky[1][k] - sky[0][k]) * t)) as [number, number, number];
     } else {
       depth[y * W + x] = hit.t;
       const p = add(cam.pos, mul(d, hit.t));
       const shade = 0.45 + 0.55 * Math.max(0, dot(hit.normal, LIGHT));
       let base: [number, number, number];
       if (!hit.prim) { const chk = (Math.floor(p[0] / 5) + Math.floor(p[2] / 5)) & 1; base = chk ? [92, 92, 96] : [80, 80, 84]; }
-      else if (hit.prim.role === 'actor') base = colour(hit.prim.owner);
+      else if (hit.prim.role === 'actor') base = hint ? [150, 150, 150] : colour(hit.prim.owner);
       else if (hit.prim.role === 'structure') base = [205, 205, 210];
       else base = [150, 150, 155];
       c = [base[0] * shade, base[1] * shade, base[2] * shade];
@@ -59,6 +65,7 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5): Image {
       dot2(px, W, H, cx, cy, r, [255, 245, 150], depth, dist(cam.pos, q) - 0.3);
     }
   }
+  if (hint) return { width: W, height: H, channels: 3, pixels: px };
   // skeletons over the bodies (to read poses at a small size)
   for (const a of s.actors.values()) {
     const col = colour(a.id).map((k) => Math.min(255, k + 70)) as [number, number, number];
@@ -84,6 +91,14 @@ export function preview(s: Solved, w: World, cam: Cam, scale = 0.5): Image {
     for (let x = 0; x < W; x++) tint(px, W, x, Math.round(k * H), [255, 255, 255], 0.18);
   }
   return { width: W, height: H, channels: 3, pixels: px };
+}
+
+/** horizon and zenith colours: day by default; dusk and night from the scene's own time of day */
+function skyOf(time?: string): [[number, number, number], [number, number, number]] {
+  const t = (time ?? '').toLowerCase();
+  if (/night|midnight/.test(t)) return [[40, 45, 80], [10, 12, 30]];
+  if (/sunset|dusk|evening|twilight|dawn|sunrise/.test(t)) return [[250, 160, 90], [90, 80, 150]];
+  return [[200, 215, 235], [110, 155, 215]];
 }
 
 function blend(c: [number, number, number], d: [number, number, number], a: number): [number, number, number] {

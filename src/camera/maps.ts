@@ -131,6 +131,8 @@ export interface Region {
   /** centre of the visible pixels, normalized */
   centre: [number, number];
   mask: Image;
+  /** a person: the angle between where they face and the camera, degrees (0 = towards it, 180 = their back) */
+  faceAngle?: number;
 }
 
 function region(id: string, kind: Region['kind'], px: Uint8Array, W: number, H: number): Region | null {
@@ -151,7 +153,12 @@ export function regionsOf(g: GBuffer, s: Solved): Region[] {
   for (const a of s.actors.values()) {
     const o = g.owners.indexOf(a.id), px = new Uint8Array(W * H);
     if (o >= 0) for (let i = 0; i < px.length; i++) if (g.owner[i] === o) px[i] = 255;
-    push(region(a.id, 'person', px, W, H));
+    const r = region(a.id, 'person', px, W, H);
+    if (r) {
+      const to = sub(cam.pos, a.head), d = Math.hypot(to[0], to[2]) || 1, fd = faceDir(a);
+      r.faceAngle = Math.acos(Math.max(-1, Math.min(1, (to[0] * fd[0] + to[2] * fd[2]) / d))) * 180 / Math.PI;
+    }
+    push(r);
   }
   // a beam: discs along its axis, each pixel kept where nothing nearer stands in front
   const vscale = f.k * H;

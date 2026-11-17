@@ -29,7 +29,7 @@ export async function runScene(scene: Scene, opts: RunOpts = {}): Promise<RunRes
   const results: ShotResult[] = [];
   for (const shot of shots) {
     const m = maps(world, shot.cam);
-    const prompt = promptOf(scene, shot);
+    const prompt = promptOf(scene, shot, m.regions);
     let image: Image | null = null, note: string | undefined;
     if (opts.generator) {
       try {

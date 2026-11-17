@@ -24,9 +24,10 @@ export interface Shot {
 
 /**
  * The 2D maps of a shot. `preview` is the gray box for people to look at; depth, lineart and pose are ControlNet
- * inputs at the output size; regions are each person's visible mask and position (for regional prompts).
+ * inputs at the output size; regions are each person's and effect's visible mask and position (for regional prompts);
+ * hint, only when an effect is in frame, is a colour hint to start the image from (beams are too thin for the others).
  */
-export interface ShotMaps { preview: Image; depth: Image; lineart: Image; pose: Image; regions: Region[] }
+export interface ShotMaps { preview: Image; depth: Image; lineart: Image; pose: Image; regions: Region[]; hint: Image | null }
 export type { Region } from './maps.ts';
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */
@@ -56,6 +57,7 @@ export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?
     lineart: lineartOf(g, w.world, regions),
     pose: openposeOf(w.solved, w.world, cam, g.width, g.height),
     regions,
+    hint: regions.some((g) => g.kind !== 'person') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
   };
 }
 

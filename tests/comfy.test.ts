@@ -13,6 +13,7 @@ const NODES: Record<string, string[]> = {
   CheckpointLoaderSimple: ['ckpt_name'], ModelSamplingDiscrete: ['model', 'sampling', 'zsnr'], CLIPTextEncode: ['clip', 'text'],
   LoadImage: ['image'], LoadImageMask: ['image', 'channel'], ConditioningSetMask: ['conditioning', 'mask', 'strength', 'set_cond_area'],
   ConditioningCombine: ['conditioning_1', 'conditioning_2'], ControlNetLoader: ['control_net_name'],
+  GrowMask: ['mask', 'expand', 'tapered_corners'], MaskComposite: ['destination', 'source', 'x', 'y', 'operation'], InvertMask: ['mask'],
   ControlNetApplyAdvanced: ['positive', 'negative', 'control_net', 'image', 'strength', 'start_percent', 'end_percent'],
   EmptyLatentImage: ['width', 'height', 'batch_size'], KSampler: ['model', 'positive', 'negative', 'latent_image', 'seed', 'steps', 'cfg', 'sampler_name', 'scheduler', 'denoise'],
   VAEDecode: ['samples', 'vae'], SaveImage: ['images', 'filename_prefix'],
@@ -95,8 +96,13 @@ describe('ComfyUI generator', () => {
       const g = srv.seen.graph!, kinds = Object.values(g).map((n) => n.class_type);
       expect(kinds.filter((k) => k === 'ControlNetApplyAdvanced')).toHaveLength(3);
       expect(kinds).toContain('ModelSamplingDiscrete');
-      // a regional prompt per visible person
-      expect(kinds.filter((k) => k === 'ConditioningSetMask')).toHaveLength(m.regions.filter((r) => r.kind === 'person').length);
+      // a regional prompt per visible person, and the whole-picture prompt outside them all
+      const people = m.regions.filter((r) => r.kind === 'person').length;
+      expect(kinds.filter((k) => k === 'ConditioningSetMask')).toHaveLength(people + 1);
+      expect(kinds).toContain('InvertMask');
+      // the head count ("2girls") stays out of the people's regions and the background
+      const texts = Object.values(g).filter((n) => n.class_type === 'CLIPTextEncode').map((n) => n.inputs.text as string);
+      expect(texts.some((t) => /\b\dgirls\b|\b\dboys\b/.test(t))).toBe(false);
       const sampler = Object.values(g).find((n) => n.class_type === 'KSampler')!;
       expect(sampler.inputs.seed).toBe(7);
       const neg = Object.values(g).filter((n) => n.class_type === 'CLIPTextEncode').map((n) => n.inputs.text as string);
@@ -113,7 +119,7 @@ describe('ComfyUI generator', () => {
   });
 
   it('CF3 the graph without ControlNets or people is still complete (a plain text-to-image)', () => {
-    const g = workflow({ models: { checkpoint: 'x', controlnet: {} }, prompt: { scene: ['street'], characters: [], negative: ['nsfw'] }, width: 64, height: 64, images: {}, masks: {} });
+    const g = workflow({ models: { checkpoint: 'x', controlnet: {} }, prompt: { scene: ['street'], characters: [], effects: [], negative: ['nsfw'] }, width: 64, height: 64, images: {}, masks: {} });
     const kinds = Object.values(g).map((n) => n.class_type).sort();
     expect(kinds).toEqual(['CLIPTextEncode', 'CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSampler', 'SaveImage', 'VAEDecode']);
   });
@@ -135,6 +141,11 @@ describe('ComfyUI generator', () => {
     expect(cfg.url).toBe(COMFY_CLOUD_URL);
     expect(cfg.headers).toEqual({ 'X-API-Key': 'k' });
     expect(comfyConfigFromEnv({ COMFY_CHECKPOINT: 'x' })).toBeNull();
+    // with only a key: Comfy Cloud's installed models
+    const d = comfyConfigFromEnv({ COMFY_API_KEY: 'k' })!;
+    expect(d.models.checkpoint).toMatch(/illustrious/);
+    expect(Object.values(d.models.controlnet).every(Boolean)).toBe(true);
+    expect(cfg.models.checkpoint).toBe('x');
   });
 
   it('CF4 PNG round trip (the decoder reads what the encoder writes, grey and RGB)', () => {

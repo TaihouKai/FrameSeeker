@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { comfyConfigFromEnv, comfyGenerator } from './comfy.ts';
 import { NotImplemented, type Generator } from './types.ts';
 
-export { promptOf, shotTags, NEGATIVE, type Prompt, type CharacterPrompt } from './prompt.ts';
+export { promptOf, shotTags, viewTags, countTags, NEGATIVE, type Prompt, type CharacterPrompt } from './prompt.ts';
 export { GeneratorUnavailable, NotImplemented, type GenerateInput, type Generator } from './types.ts';
 export { comfyGenerator, comfyConfigFromEnv, COMFY_CLOUD_URL, type ComfyConfig } from './comfy.ts';
 export { workflow, DEFAULT_CONTROL, DEFAULT_SAMPLING, type ComfyModels } from './workflow.ts';

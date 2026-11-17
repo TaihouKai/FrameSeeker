@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { toPng, type Image } from '../shared/image.ts';
 import { decodePng } from '../shared/png.ts';
-import { OUTPUT_NODE, workflow, type ComfyModels, type ComfySampling, type Graph } from './workflow.ts';
+import { OUTPUT_NODE, workflow, type ComfyModels, type ComfySampling, type Graph, type WorkflowInput } from './workflow.ts';
 import { GeneratorUnavailable, type GenerateInput, type Generator } from './types.ts';
 
 export interface ComfyConfig {
@@ -13,12 +13,24 @@ export interface ComfyConfig {
   headers?: Record<string, string>;
   models: ComfyModels;
   sampling?: Partial<ComfySampling>;
+  control?: WorkflowInput['control'];
+  maskGrow?: number;
+  /** a shot with effects starts from their colour hint (maps.hint) and redraws this much of it; 1 = from noise (default 0.9) */
+  hintDenoise?: number;
   /** give up after this long (ms) */
   timeout?: number;
   pollEvery?: number;
 }
 
 export const COMFY_CLOUD_URL = 'https://cloud.comfy.org/api';
+const CLOUD_DEFAULTS: Record<string, string> = {
+  COMFY_CHECKPOINT: 'wai-illustrious-sdxl.safetensors',
+  COMFY_CN_DEPTH: 'controlnet-depth-sdxl-1.0.safetensors',
+  COMFY_CN_POSE: 'controlnet-openpose-sdxl-1.0.safetensors',
+  COMFY_CN_LINEART: 'controlnet-scribble-sdxl-1.0.safetensors',
+  COMFY_POSITIVE: 'masterpiece, best quality, amazing quality',
+  COMFY_NEGATIVE: 'worst quality, low quality, bad hands',
+};
 
 /**
  * Configuration from the environment: COMFY_URL, COMFY_API_KEY (sent as X-API-Key), COMFY_HEADERS (JSON),
@@ -26,6 +38,8 @@ export const COMFY_CLOUD_URL = 'https://cloud.comfy.org/api';
  */
 export function comfyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ComfyConfig | null {
   const url = env.COMFY_URL ?? (env.COMFY_API_KEY ? COMFY_CLOUD_URL : undefined);
+  // on Comfy Cloud, models it has installed (checked through /api/object_info), unless named
+  if (url === COMFY_CLOUD_URL) env = { ...CLOUD_DEFAULTS, ...env };
   if (!url || !env.COMFY_CHECKPOINT) return null;
   const headers: Record<string, string> = { ...(env.COMFY_HEADERS ? JSON.parse(env.COMFY_HEADERS) : {}), ...(env.COMFY_API_KEY ? { 'X-API-Key': env.COMFY_API_KEY } : {}) };
   return {
@@ -34,9 +48,12 @@ export function comfyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ComfyC
     models: {
       checkpoint: env.COMFY_CHECKPOINT, vpred: env.COMFY_VPRED === '1',
       controlnet: { depth: env.COMFY_CN_DEPTH, lineart: env.COMFY_CN_LINEART, pose: env.COMFY_CN_POSE },
+      positive: list(env.COMFY_POSITIVE), negative: list(env.COMFY_NEGATIVE),
     },
   };
 }
+
+const list = (s?: string) => s ? s.split(',').map((x) => x.trim()).filter(Boolean) : undefined;
 
 export function comfyGenerator(config: ComfyConfig | null | (() => ComfyConfig | null)): Generator {
   return {
@@ -68,16 +85,19 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   };
 
   const { maps, prompt } = input;
+  const hintDenoise = cfg.hintDenoise ?? 0.9;
   const images = {
     depth: cfg.models.controlnet.depth ? await upload(maps.depth, 'depth') : undefined,
     lineart: cfg.models.controlnet.lineart ? await upload(maps.lineart, 'lineart') : undefined,
     pose: cfg.models.controlnet.pose ? await upload(maps.pose, 'pose') : undefined,
+    init: maps.hint && hintDenoise < 1 ? await upload(maps.hint, 'hint') : undefined,
   };
   const masks: Record<string, string> = {};
-  for (const r of maps.regions) if (r.kind === 'person' && prompt.characters.some((c) => c.id === r.id)) masks[r.id] = await upload(r.mask, `mask-${r.id}`);
+  const named = new Set([...prompt.characters, ...prompt.effects].map((c) => c.id));
+  for (const r of maps.regions) if (named.has(r.id)) masks[r.id] = await upload(r.mask, `mask-${r.id}`);
 
   const graph: Graph = workflow({
-    models: cfg.models, prompt, width: input.width, height: input.height, images, masks,
+    models: cfg.models, prompt, width: input.width, height: input.height, images, masks, control: cfg.control, maskGrow: cfg.maskGrow, initDenoise: hintDenoise,
     sampling: { ...cfg.sampling, ...(input.seed !== undefined ? { seed: input.seed } : {}) },
   });
   const queued = await (await call('/prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: graph, client_id: tag }) })).json() as { prompt_id?: string; error?: unknown; node_errors?: unknown };

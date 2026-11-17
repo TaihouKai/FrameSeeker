@@ -4,9 +4,9 @@
  "time": { "of_day": "sunset", "weather": "clear" },
  "actors": [
   { "id": "shooter", "height": 1.55, "pose": "fire_beam_one_hand", "aim": "dodger.head", "place": { "at": [0, 0] },
-    "prompt": { "look": ["long hair"], "outfit": ["coat"], "expression": ["determined"] } },
+    "prompt": { "look": ["1girl", "long hair"], "outfit": ["coat"], "expression": ["determined"] } },
   { "id": "dodger", "height": 1.61, "pose": "dodge_head_tilt", "facing": "shooter", "place": { "from": "shooter", "distance": 30, "bearing": "front" },
-    "prompt": { "look": ["short hair"], "outfit": ["school uniform"], "expression": ["surprised", "wide-eyed"] } }
+    "prompt": { "look": ["1girl", "short hair"], "outfit": ["school uniform"], "expression": ["surprised", "wide-eyed"] } }
  ],
  "structures": [
   { "id": "tower", "kind": "building", "size": { "floors": 30, "width": 30, "depth": 25 }, "place": { "behind": "dodger", "seen_from": "shooter", "distance": 80 }, "prompt": ["glass office tower", "skyscraper"] }

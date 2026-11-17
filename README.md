@@ -29,6 +29,8 @@ Hard constraints (the subject and the payoff visible, the action line not runnin
 - shot scale: the frequencies of film shot scales (Cutting 2015, 13 956 frames from 48 films); action shots blend
   these with reference action shots;
 - face angle: how often reference shots show the front, three-quarter and back, over a uniform camera;
+- camera tilt, the same way: near top-down shots (over 45° down) are 2 of 88 reference shots against 13% of random
+  cameras; other tilts are as common as chance, or too rare among random cameras to judge;
 - framing, lead room, foreshortening of the action line, joint cuts on the subject, occlusion of the subject by
   nearer people (Bares et al. 2000), mergers.
 
@@ -76,13 +78,24 @@ COMFY_URL=http://127.0.0.1:8188   COMFY_CHECKPOINT=<sdxl>.safetensors   [COMFY_V
 COMFY_CN_DEPTH=<...>   COMFY_CN_LINEART=<...>   COMFY_CN_POSE=<...>   [COMFY_HEADERS='{"Authorization":"Bearer ..."}']
 ```
 
-For [Comfy Cloud](https://cloud.comfy.org) (a paid plan includes API access), give an API key from platform.comfy.org
-as `COMFY_API_KEY` or in `~/.secrets/comfy.key` and leave `COMFY_URL` unset: the client then talks to
-`https://cloud.comfy.org/api` (results from `/api/jobs/{id}`, downloads through the signed redirect).
+For [Comfy Cloud](https://cloud.comfy.org) (a paid plan includes API access), an API key from platform.comfy.org as
+`COMFY_API_KEY` or in `~/.secrets/comfy.key` is enough: the client talks to `https://cloud.comfy.org/api` and uses
+models Cloud has installed (WAI-Illustrious SDXL; the SDXL depth, OpenPose and scribble ControlNets), each overridable.
+
+What the first runs on it taught (details in `src/generate/`):
+
+- **Regional prompts, strictly.** Each person's and each effect's tags go only inside their own mask, the setting
+  only outside them all. With everyone in one prompt, hair and gender swapped between people, and "melting" melted
+  whatever the model chose.
+- **Depth under pose.** A featureless mannequin has the same depth from the front and the back, so which way someone
+  faces must come from the pose (and the tag `facing viewer` / `from behind`); depth 0.8 under pose 1.0.
+- **Effects need a colour hint.** A beam is a few pixels in depth and line art; a shot with an effect in frame starts
+  from a colour hint (the gray box with the sky of the scene's time of day, people grey) at denoise 0.9.
 
 Without a server the pipeline still writes the maps and prompts and notes that nothing was generated.
 
 ## Status
 
-Phases 1–5 work end to end; the phase 6 client is tested against a mock ComfyUI server but has not yet been run on a
-GPU server, so ControlNet strengths are starting values.
+Phases 1–6 run end to end on Comfy Cloud. The generated pictures keep the gray box's composition (camera height,
+angle, lens, who is where); getting every person right (gender, facing) is not yet reliable: about 3 seeds in 4
+in the hardest test so far, a back-view person in the foreground.
