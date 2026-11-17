@@ -89,6 +89,10 @@ What the first runs on it taught (details in `src/generate/`):
   whatever the model chose.
 - **Depth under pose.** A featureless mannequin has the same depth from the front and the back, so which way someone
   faces must come from the pose (and the tag `facing viewer` / `from behind`); depth 0.8 under pose 1.0.
+- **Check, then keep the best.** Each shot is drawn 4 times (one batch); a pose detector (DWPose, an instrument:
+  coordinates out) finds the people in each picture, and plain geometry (`src/generate/check.ts`) compares them
+  with the planned skeletons: everyone found, near their place, facing the right way (the shoulders' left-right
+  order). On 12 hand-judged pictures it passed no wrong one; it misses some right ones (a back at the frame's edge).
 - **Effects need a colour hint.** A beam is a few pixels in depth and line art; a shot with an effect in frame starts
   from a colour hint (the gray box with the sky of the scene's time of day, people grey) at denoise 0.9.
 
@@ -97,5 +101,6 @@ Without a server the pipeline still writes the maps and prompts and notes that n
 ## Status
 
 Phases 1–6 run end to end on Comfy Cloud. The generated pictures keep the gray box's composition (camera height,
-angle, lens, who is where); getting every person right (gender, facing) is not yet reliable: about 3 seeds in 4
-in the hardest test so far, a back-view person in the foreground.
+angle, lens, who is where). One picture alone gets every person right about 3 times in 4 in the hardest test so far
+(a back-view person in the foreground); with 4 candidates and the pose check, both classroom shots came out right.
+The check cannot see gender, or effects.

@@ -11,7 +11,8 @@ import { comfyConfigFromEnv, comfyGenerator } from './comfy.ts';
 import { NotImplemented, type Generator } from './types.ts';
 
 export { promptOf, shotTags, viewTags, countTags, NEGATIVE, type Prompt, type CharacterPrompt } from './prompt.ts';
-export { GeneratorUnavailable, NotImplemented, type GenerateInput, type Generator } from './types.ts';
+export { GeneratorUnavailable, NotImplemented, type GenerateInput, type GenerateResult, type Generator } from './types.ts';
+export { checkPose, bestCandidate, type PoseCheck, type PersonCheck, type Joints, type PlannedPose } from './check.ts';
 export { comfyGenerator, comfyConfigFromEnv, COMFY_CLOUD_URL, type ComfyConfig } from './comfy.ts';
 export { workflow, DEFAULT_CONTROL, DEFAULT_SAMPLING, type ComfyModels } from './workflow.ts';
 

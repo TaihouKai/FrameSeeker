@@ -4,8 +4,9 @@
 import { randomUUID } from 'node:crypto';
 import { toPng, type Image } from '../shared/image.ts';
 import { decodePng } from '../shared/png.ts';
-import { OUTPUT_NODE, workflow, type ComfyModels, type ComfySampling, type Graph, type WorkflowInput } from './workflow.ts';
-import { GeneratorUnavailable, type GenerateInput, type Generator } from './types.ts';
+import { bestCandidate, checkPose, type Joints, type PoseCheck } from './check.ts';
+import { OUTPUT_NODE, POSE_NODE, workflow, type ComfyModels, type ComfySampling, type Graph, type WorkflowInput } from './workflow.ts';
+import { GeneratorUnavailable, type GenerateInput, type GenerateResult, type Generator } from './types.ts';
 
 export interface ComfyConfig {
   url: string;
@@ -17,6 +18,10 @@ export interface ComfyConfig {
   maskGrow?: number;
   /** a shot with effects starts from their colour hint (maps.hint) and redraws this much of it; 1 = from noise (default 0.9) */
   hintDenoise?: number;
+  /** pictures per shot (one batch); with detectPose the one whose people best follow the plan is kept */
+  candidates?: number;
+  /** run a pose detector on each picture (needs comfyui_controlnet_aux's DWPreprocessor on the server) */
+  detectPose?: boolean;
   /** give up after this long (ms) */
   timeout?: number;
   pollEvery?: number;
@@ -30,11 +35,15 @@ const CLOUD_DEFAULTS: Record<string, string> = {
   COMFY_CN_LINEART: 'controlnet-scribble-sdxl-1.0.safetensors',
   COMFY_POSITIVE: 'masterpiece, best quality, amazing quality',
   COMFY_NEGATIVE: 'worst quality, low quality, bad hands',
+  // four pictures per shot, the one whose people best follow the plan kept (DWPose is installed there)
+  COMFY_CANDIDATES: '4',
+  COMFY_DETECT_POSE: '1',
 };
 
 /**
  * Configuration from the environment: COMFY_URL, COMFY_API_KEY (sent as X-API-Key), COMFY_HEADERS (JSON),
- * COMFY_CHECKPOINT, COMFY_VPRED=1, COMFY_CN_DEPTH / _LINEART / _POSE. With an API key and no URL, Comfy Cloud.
+ * COMFY_CHECKPOINT, COMFY_VPRED=1, COMFY_CN_DEPTH / _LINEART / _POSE, COMFY_POSITIVE / _NEGATIVE (quality tags),
+ * COMFY_CANDIDATES, COMFY_DETECT_POSE=1. With an API key and no URL, Comfy Cloud.
  */
 export function comfyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ComfyConfig | null {
   const url = env.COMFY_URL ?? (env.COMFY_API_KEY ? COMFY_CLOUD_URL : undefined);
@@ -50,6 +59,8 @@ export function comfyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ComfyC
       controlnet: { depth: env.COMFY_CN_DEPTH, lineart: env.COMFY_CN_LINEART, pose: env.COMFY_CN_POSE },
       positive: list(env.COMFY_POSITIVE), negative: list(env.COMFY_NEGATIVE),
     },
+    candidates: env.COMFY_CANDIDATES ? Number(env.COMFY_CANDIDATES) : undefined,
+    detectPose: env.COMFY_DETECT_POSE === '1',
   };
 }
 
@@ -66,7 +77,7 @@ export function comfyGenerator(config: ComfyConfig | null | (() => ComfyConfig |
   };
 }
 
-async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal): Promise<Image> {
+async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal): Promise<GenerateResult> {
   const base = cfg.url.replace(/\/+$/, '');
   const headers = cfg.headers ?? {};
   const call = async (path: string, init: RequestInit = {}) => {
@@ -85,6 +96,7 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   };
 
   const { maps, prompt } = input;
+  const candidates = Math.max(1, input.candidates ?? cfg.candidates ?? 1), detectPose = !!cfg.detectPose;
   const hintDenoise = cfg.hintDenoise ?? 0.9;
   const images = {
     depth: cfg.models.controlnet.depth ? await upload(maps.depth, 'depth') : undefined,
@@ -97,7 +109,7 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   for (const r of maps.regions) if (named.has(r.id)) masks[r.id] = await upload(r.mask, `mask-${r.id}`);
 
   const graph: Graph = workflow({
-    models: cfg.models, prompt, width: input.width, height: input.height, images, masks, control: cfg.control, maskGrow: cfg.maskGrow, initDenoise: hintDenoise,
+    models: cfg.models, prompt, width: input.width, height: input.height, images, masks, control: cfg.control, maskGrow: cfg.maskGrow, initDenoise: hintDenoise, batch: candidates, detectPose,
     sampling: { ...cfg.sampling, ...(input.seed !== undefined ? { seed: input.seed } : {}) },
   });
   const queued = await (await call('/prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: graph, client_id: tag }) })).json() as { prompt_id?: string; error?: unknown; node_errors?: unknown };
@@ -121,14 +133,26 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
       entry = { outputs: j.outputs };
     }
     if (entry?.status?.status_str === 'error') throw new Error(`ComfyUI failed: ${JSON.stringify(entry.status.messages).slice(0, 500)}`);
-    const img = entry?.outputs?.[OUTPUT_NODE]?.images?.[0];
-    if (img) return decodePng(await view(img));
+    const imgs = entry?.outputs?.[OUTPUT_NODE]?.images;
+    if (imgs?.length) return pickAndFetch(imgs, entry!.outputs![POSE_NODE]?.openpose_json);
     if (Date.now() > deadline) throw new Error('ComfyUI: timed out');
     await new Promise((r) => setTimeout(r, cfg.pollEvery ?? 1500));
   }
 
+  /** the candidate whose people best follow the plan (when measured); only that one is downloaded */
+  async function pickAndFetch(imgs: OutImage[], poseJson?: string[]): Promise<GenerateResult> {
+    let checks: PoseCheck[] | undefined;
+    if (detectPose && poseJson?.length) {
+      // one JSON list of frames per string; a batch may come as one string or one per picture
+      const frames = poseJson.flatMap((s) => JSON.parse(s) as DetectedFrame[]);
+      if (frames.length === imgs.length) checks = frames.map((f) => checkPose(maps.people, detectedJoints(f), f.canvas_width / f.canvas_height));
+    }
+    const k = checks ? bestCandidate(checks) : 0;
+    return { image: decodePng(await view(imgs[k])), check: checks?.[k], checks };
+  }
+
   /** /view returns the bytes (local) or a redirect to a signed storage URL (cloud), which must be fetched without our key */
-  async function view(img: { filename: string; subfolder: string; type: string }): Promise<Uint8Array> {
+  async function view(img: OutImage): Promise<Uint8Array> {
     const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder ?? '', type: img.type ?? 'output' });
     const r = await fetch(`${base}/view?${q}`, { headers, redirect: 'manual', signal });
     if (r.status >= 300 && r.status < 400) {
@@ -143,5 +167,12 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   }
 }
 
-type Entry = { status?: { status_str?: string; messages?: unknown }; outputs?: Record<string, { images?: { filename: string; subfolder: string; type: string }[] }> };
+type OutImage = { filename: string; subfolder: string; type: string };
+type Entry = { status?: { status_str?: string; messages?: unknown }; outputs?: Record<string, { images?: OutImage[]; openpose_json?: string[] }> };
+/** one picture's people as an OpenPose-format detector writes them (pixels; [x, y, confidence] per joint) */
+interface DetectedFrame { canvas_width: number; canvas_height: number; people: { pose_keypoints_2d: number[] }[] }
+function detectedJoints(f: DetectedFrame): Joints[] {
+  const k = (p: number[], n: number): [number, number] | null => p[3 * n + 2] > 0 ? [p[3 * n] / f.canvas_width, p[3 * n + 1] / f.canvas_height] : null;
+  return f.people.map((p) => Array.from({ length: 18 }, (_, n) => k(p.pose_keypoints_2d, n)));
+}
 const FAILED = new Set(['failed', 'error', 'non_retryable_error', 'lost', 'cancelled', 'canceled']);

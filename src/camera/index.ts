@@ -6,7 +6,7 @@ import type { Image } from '../shared/image.ts';
 import { context, evaluate, TERMS, type Evaluation } from './score.ts';
 import { search, type SearchOpts } from './search.ts';
 import { preview } from './render.ts';
-import { depthOf, gbuffer, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
+import { depthOf, faceAngleOf, gbuffer, keypoints, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
 import { frame, pitch, type Cam } from './camera.ts';
 
 export type { Cam, Aspect } from './camera.ts';
@@ -27,7 +27,12 @@ export interface Shot {
  * inputs at the output size; regions are each person's and effect's visible mask and position (for regional prompts);
  * hint, only when an effect is in frame, is a colour hint to start the image from (beams are too thin for the others).
  */
-export interface ShotMaps { preview: Image; depth: Image; lineart: Image; pose: Image; regions: Region[]; hint: Image | null }
+export interface ShotMaps { preview: Image; depth: Image; lineart: Image; pose: Image; regions: Region[]; hint: Image | null; people: PlannedPerson[] }
+/**
+ * Each person as planned: the OpenPose body-18 joints where they should appear ([u, v] in 0..1 of the frame; null:
+ * hidden or out of frame, nose and eyes when facing away), and the angle between where they face and the camera.
+ */
+export interface PlannedPerson { id: string; faceAngle: number; joints: ([number, number] | null)[] }
 export type { Region } from './maps.ts';
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */
@@ -57,6 +62,7 @@ export function maps(w: World3D, cam: Cam, opts: { scale?: number; previewScale?
     lineart: lineartOf(g, w.world, regions),
     pose: openposeOf(w.solved, w.world, cam, g.width, g.height),
     regions,
+    people: [...w.solved.actors.values()].map((a) => ({ id: a.id, faceAngle: faceAngleOf(a, cam), joints: keypoints(a, w.world, cam, 1, 1) })),
     hint: regions.some((g) => g.kind !== 'person') ? preview(w.solved, w.world, cam, opts.previewScale ?? 0.5, { hint: true }) : null,
   };
 }

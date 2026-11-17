@@ -35,7 +35,7 @@ describe('pipeline: scene → camera → generate', () => {
   });
 
   it('PL5 a person seen from behind has no expression; effects are their own prompts', () => {
-    const p = promptOf(scene, undefined, [{ id: 'b', kind: 'person', faceAngle: 170 }]);
+    const p = promptOf(scene, undefined, [{ id: 'b', faceAngle: 170 }]);
     const b = p.characters.find((c) => c.id === 'b')!;
     expect(b.tags).toContain('from behind');
     expect(b.tags).not.toContain('doubtful');

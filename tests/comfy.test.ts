@@ -17,6 +17,9 @@ const NODES: Record<string, string[]> = {
   ControlNetApplyAdvanced: ['positive', 'negative', 'control_net', 'image', 'strength', 'start_percent', 'end_percent'],
   EmptyLatentImage: ['width', 'height', 'batch_size'], KSampler: ['model', 'positive', 'negative', 'latent_image', 'seed', 'steps', 'cfg', 'sampler_name', 'scheduler', 'denoise'],
   VAEDecode: ['samples', 'vae'], SaveImage: ['images', 'filename_prefix'],
+  VAEEncode: ['pixels', 'vae'], ImageScale: ['image', 'upscale_method', 'width', 'height', 'crop'], RepeatLatentBatch: ['samples', 'amount'],
+  // comfyui_controlnet_aux (installed on Comfy Cloud)
+  DWPreprocessor: ['image'], PreviewImage: ['images'],
 };
 // outputs per node class (to check link indices)
 const OUTPUTS: Record<string, number> = { CheckpointLoaderSimple: 3, ControlNetApplyAdvanced: 2 };
@@ -25,12 +28,13 @@ const body = (req: IncomingMessage) => new Promise<Buffer>((res) => { const c: B
 
 /** A fake ComfyUI: checks uploads and the graph, "renders" a 4x2 picture after two polls. */
 /** cloud: imitates Comfy Cloud — routes under /api, no /history (outputs from /api/jobs/{id}), /view redirects to a signed URL that refuses our key */
-async function fakeComfy(cloud = false) {
+async function fakeComfy(cloud = false, result?: { outputs: Record<string, unknown>; files: Record<string, Uint8Array> }) {
   const uploaded = new Set<string>();
   const seen: { graph?: Record<string, { class_type: string; inputs: Record<string, unknown> }>; problems: string[]; auth: string[] } = { problems: [], auth: [] };
   let polls = 0;
   const picture = encodePng(4, 2, new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255, 9, 9, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), 3);
-  const outputs = { save: { images: [{ filename: 'out.png', subfolder: '', type: 'output' }] } };
+  const outputs = result?.outputs ?? { save: { images: [{ filename: 'out.png', subfolder: '', type: 'output' }] } };
+  const files: Record<string, Uint8Array> = result?.files ?? { 'out.png': picture };
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, 'http://x');
     if (cloud && url.pathname === '/signed/out.png') {
@@ -72,8 +76,8 @@ async function fakeComfy(cloud = false) {
     } else if (url.pathname === '/history/p1') {
       polls++;
       res.end(JSON.stringify(polls < 2 ? {} : { p1: { status: { status_str: 'success' }, outputs } }));
-    } else if (url.pathname === '/view' && url.searchParams.get('filename') === 'out.png') {
-      res.setHeader('content-type', 'image/png'); res.end(picture);
+    } else if (url.pathname === '/view' && files[url.searchParams.get('filename')!]) {
+      res.setHeader('content-type', 'image/png'); res.end(files[url.searchParams.get('filename')!]);
     } else { res.statusCode = 404; res.end('no'); }
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -89,7 +93,7 @@ describe('ComfyUI generator', () => {
     try {
       const w = realize(scene), shot = shoot(w, { n: 400, refine: 3, iters: 5, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
       const gen = comfyGenerator({ url: srv.url, headers: { 'x-api-key': 'k' }, models, pollEvery: 5 });
-      const img = await gen.generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832, seed: 7 });
+      const { image: img } = await gen.generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832, seed: 7 });
       expect(srv.seen.problems).toEqual([]);
       expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
       expect(img).toEqual(decodePng(srv.picture));
@@ -129,10 +133,33 @@ describe('ComfyUI generator', () => {
     try {
       const w = realize(scene), shot = shoot(w, { n: 300, refine: 2, iters: 4, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
       const cfg = comfyConfigFromEnv({ COMFY_URL: `${srv.url}/api`, COMFY_API_KEY: 'k', COMFY_CHECKPOINT: 'x.safetensors', COMFY_CN_DEPTH: 'd.safetensors' })!;
-      const img = await comfyGenerator({ ...cfg, pollEvery: 5 }).generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832 });
+      const { image: img } = await comfyGenerator({ ...cfg, pollEvery: 5, candidates: 1, detectPose: false }).generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832 });
       expect(srv.seen.problems).toEqual([]);
       expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
       expect(img).toEqual(decodePng(srv.picture));
+    } finally { srv.close(); }
+  });
+
+  it('CF7 several candidates and a pose detector: the picture whose people follow the plan is kept', async () => {
+    const w = realize(scene), shot = shoot(w, { n: 400, refine: 3, iters: 5, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
+    const W = 1216, H = 832;
+    // the detector's view: candidate 0 has one person, mirrored (facing the wrong way) and shifted; candidate 1 everyone as planned
+    const asDetected = (flip: boolean, people: typeof m.people) => ({ canvas_width: W, canvas_height: H, people: people.map((p) => ({
+      pose_keypoints_2d: p.joints.flatMap((j, n) => { const k = flip ? [0, 1, 5, 6, 7, 2, 3, 4, 11, 12, 13, 8, 9, 10, 15, 14, 17, 16][n] : n; const q = flip ? p.joints[k] : j; return q ? [(flip ? 1 - q[0] : q[0]) * W, q[1] * H, 1] : [0, 0, 0]; }) })) });
+    const pic = (v: number) => encodePng(2, 1, new Uint8Array([v, v, v, v, v, v]), 3);
+    const srv = await fakeComfy(false, {
+      outputs: { save: { images: [0, 1].map((i) => ({ filename: `c${i}.png`, subfolder: '', type: 'output' })) }, pose: { openpose_json: [JSON.stringify([asDetected(true, m.people.slice(0, 1)), asDetected(false, m.people)])] } },
+      files: { 'c0.png': pic(10), 'c1.png': pic(200) },
+    });
+    try {
+      const r = await comfyGenerator({ url: srv.url, models, pollEvery: 5, candidates: 2, detectPose: true }).generate({ maps: m, prompt: promptOf(scene, shot, m.people), width: W, height: H });
+      expect(srv.seen.problems).toEqual([]);
+      const g = srv.seen.graph!;
+      expect(Object.values(g).find((n) => n.class_type === 'EmptyLatentImage')!.inputs.batch_size).toBe(2);
+      expect(g.pose.class_type).toBe('DWPreprocessor');
+      expect(r.checks!.map((c) => c.score)).toEqual([0, 1]);
+      expect(r.image.pixels[0]).toBe(200);
+      expect(r.check!.people.every((p) => p.found && p.facing !== 'flipped')).toBe(true);
     } finally { srv.close(); }
   });
 

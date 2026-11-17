@@ -42,8 +42,8 @@ const report = {
   notes: r.world.solved.notes,
   shots: r.shots.map((s, i) => ({ name: `shot-${i + 1}`, total: +s.shot.total.toFixed(3), camera: s.shot.cam, info: s.shot.info,
     regions: s.maps.regions.map((g) => ({ id: g.id, kind: g.kind, area: +g.area.toFixed(4), centre: g.centre.map((v) => +v.toFixed(3)), box: g.box.map((v) => +v.toFixed(3)) })),
-    generated: !!s.image, note: s.note })),
+    generated: !!s.image, check: s.check, candidates: s.candidates?.map((c) => +c.score.toFixed(2)), note: s.note })),
 };
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 1));
 console.log(`${file}: ${r.shots.length} shot(s) in ${report.seconds.toFixed(1)} s -> ${out}${r.built ? `  (staging: ${r.built.winner.name}, $${report.usd.toFixed(4)})` : ''}`);
-for (const s of report.shots) console.log(`  ${s.name}: ${s.total}  h=${s.info.camera_height?.toFixed(2)} m pitch=${s.info.pitch_deg?.toFixed(0)}° ${s.camera.focal}mm ${s.camera.aspect}${s.note ? '  [' + s.note + ']' : ''}`);
+for (const s of report.shots) console.log(`  ${s.name}: ${s.total}  h=${s.info.camera_height?.toFixed(2)} m pitch=${s.info.pitch_deg?.toFixed(0)}° ${s.camera.focal}mm ${s.camera.aspect}${s.check ? `  people as planned ${s.check.score.toFixed(2)} (of ${s.candidates?.length ?? 1})` : ''}${s.note ? '  [' + s.note + ']' : ''}`);

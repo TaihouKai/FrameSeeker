@@ -48,12 +48,12 @@ export function viewTags(faceAngle: number | undefined): string[] {
   return faceAngle > 120 ? ['from behind', 'facing away'] : faceAngle > 60 ? ['profile'] : faceAngle < 45 ? ['facing viewer'] : [];
 }
 
-/** regions: the shot's person regions (camera maps), for how each person is seen */
-export function promptOf(scene: Scene, shot?: Shot, regions?: { id: string; kind: string; faceAngle?: number }[]): Prompt {
+/** people: the shot's planned people (camera maps), for how each person is seen */
+export function promptOf(scene: Scene, shot?: Shot, people?: { id: string; faceAngle: number }[]): Prompt {
   const tags = (xs: (string | undefined)[] | undefined) => (xs ?? []).map((x) => x?.trim()).filter((x): x is string => !!x);
   const focusFirst = [...scene.actors].sort((a, b) => Number(b.id === scene.moment.focus) - Number(a.id === scene.moment.focus));
   const characters = focusFirst.map((a) => {
-    const angle = regions?.find((r) => r.kind === 'person' && r.id === a.id)?.faceAngle;
+    const angle = people?.find((r) => r.id === a.id)?.faceAngle;
     // a face that cannot be seen has no expression to draw (the tag makes the model turn the head)
     const back = angle !== undefined && angle > 120;
     return {

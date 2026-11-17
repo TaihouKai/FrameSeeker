@@ -44,6 +44,10 @@ export interface WorkflowInput {
   control?: Partial<typeof DEFAULT_CONTROL>;
   /** how far each person's mask grows, as a fraction of the image's long side */
   maskGrow?: number;
+  /** pictures per run (one seed, a batch) */
+  batch?: number;
+  /** also run a pose detector on every picture (its keypoints come back as the pose node's openpose_json) */
+  detectPose?: boolean;
 }
 
 /** head-count tags ("2girls", "1boy"): for the whole picture, not for one person's region */
@@ -106,11 +110,20 @@ export function workflow(input: WorkflowInput): Graph {
   }
 
   const init = input.images.init && (input.initDenoise ?? 1) < 1;
-  const latent = init ? node('VAEEncode', { pixels: node('ImageScale', { image: node('LoadImage', { image: input.images.init }), upscale_method: 'bilinear', width: input.width, height: input.height, crop: 'disabled' }), vae }) : node('EmptyLatentImage', { width: input.width, height: input.height, batch_size: 1 });
+  const batch = Math.max(1, Math.round(input.batch ?? 1));
+  let latent = init ? node('VAEEncode', { pixels: node('ImageScale', { image: node('LoadImage', { image: input.images.init }), upscale_method: 'bilinear', width: input.width, height: input.height, crop: 'disabled' }), vae }) : node('EmptyLatentImage', { width: input.width, height: input.height, batch_size: batch });
+  if (init && batch > 1) latent = node('RepeatLatentBatch', { samples: latent, amount: batch });
   const sampled = node('KSampler', {
     model, positive, negative, latent_image: latent, seed: s.seed, steps: s.steps, cfg: s.cfg, sampler_name: s.sampler, scheduler: s.scheduler, denoise: init ? input.initDenoise! : 1,
   });
   const decoded = node('VAEDecode', { samples: sampled, vae });
   node('SaveImage', { images: decoded, filename_prefix: 'frameseeker' }, OUTPUT_NODE);
+  // the people in each picture, measured by a pose detector (DWPose, comfyui_controlnet_aux) for check.ts
+  if (input.detectPose) {
+    const found = node('DWPreprocessor', { image: decoded, detect_hand: 'disable', detect_body: 'enable', detect_face: 'disable', resolution: 1024 }, POSE_NODE);
+    node('PreviewImage', { images: found });
+  }
   return g;
 }
+
+export const POSE_NODE = 'pose';
