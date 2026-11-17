@@ -1,5 +1,5 @@
 // A pinhole camera with a 35 mm-equivalent focal length; screen coordinates are normalized: u, v in [0, 1], v down.
-import { cross, dot, norm, rotAxis, sub, UP, type V3 } from './vec.ts';
+import { cross, dot, norm, rotAxis, sub, UP, type V3 } from '../shared/vec.ts';
 
 export type Aspect = 'portrait' | 'landscape' | 'wide';
 export interface Cam { pos: V3; target: V3; /** radians */ roll: number; /** mm, 35 mm equivalent */ focal: number; aspect: Aspect }

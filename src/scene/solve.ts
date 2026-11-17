@@ -1,8 +1,8 @@
 // Stage 1 (DESIGN.md §5): relations in the scene JSON -> exact geometry. Deterministic; errors are readable.
-import { add, dist, lerp, mul, norm, sub, yawDir, yawTo, type V3 } from './vec.ts';
+import { add, dist, lerp, mul, norm, sub, yawDir, yawTo, type V3 } from '../shared/vec.ts';
 import { HEAD, KP, POSES, mirror, toWorld, type Local } from './poses.ts';
-import { cast, type Prim, type World } from './geom.ts';
-import { isDamage, isLine, isVolume, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './scene.ts';
+import { cast, type Prim, type World } from '../shared/geom.ts';
+import { isDamage, isLine, isVolume, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './types.ts';
 
 export const FLOOR_H = 3.5;
 

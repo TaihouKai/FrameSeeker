@@ -1,11 +1,11 @@
 // Stage 3 scoring (DESIGN.md §6.4): hard constraints, then composition terms in [0, 1], weighted by the shot's intent.
 // Each term names the textbook principle it encodes.
-import { add, dist, lerp, mul, sub, type V3 } from './vec.ts';
-import { cast, clear, corners, inside, type Prim, type World } from './geom.ts';
+import { add, dist, lerp, mul, sub, type V3 } from '../shared/vec.ts';
+import { cast, clear, corners, inside, type Prim, type World } from '../shared/geom.ts';
 import { frame, inFrame, pitch, project, ray, screenSegment, SIZE, type Aspect, type Cam, type Frame } from './camera.ts';
-import { KP } from './poses.ts';
-import type { Intent } from './scene.ts';
-import type { Solved, SolvedActor } from './solve.ts';
+import { KP } from '../scene/poses.ts';
+import type { Intent } from '../scene/types.ts';
+import type { Solved, SolvedActor } from '../scene/solve.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
 export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;

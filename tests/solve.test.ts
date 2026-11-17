@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { solve } from '../src/solve.ts';
-import { POSES } from '../src/poses.ts';
-import { cross, dot, len, norm, sub } from '../src/vec.ts';
-import type { Scene } from '../src/scene.ts';
+import { solve } from '../src/scene/solve.ts';
+import { POSES } from '../src/scene/poses.ts';
+import { cross, dot, len, norm, sub } from '../src/shared/vec.ts';
+import type { Scene } from '../src/scene/types.ts';
 
 const scene = (name: string) => JSON.parse(readFileSync(`scenes/${name}.json`, 'utf8')) as Scene;
 const lineDistance = (p: number[], a: number[], b: number[]) => {

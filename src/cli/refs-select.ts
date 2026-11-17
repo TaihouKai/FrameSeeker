@@ -1,4 +1,4 @@
-// node src/refs-select.ts [--per 15]
+// npm run refs:select -- [--per 15]
 // The reference sample (DESIGN.md §6.6.2): the frames kept by eval/refs/selection.json, one per shot (K6, from the
 // cuts in refs/<episode>/cuts.txt), then `per` of them at equal intervals. Writes eval/refs/sample.json.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';

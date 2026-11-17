@@ -1,7 +1,7 @@
 // Stage 2 (DESIGN.md §5.4): set dressing by the kind of place, so the camera search has something to frame with.
 // Deterministic (seeded by the scene); nothing is put where it would block the action, the focus or the payoff.
-import { add, hash, lerp, mul, norm, rng, sub, yawTo, type V3 } from './vec.ts';
-import { clear, inside, type Prim, type World } from './geom.ts';
+import { add, hash, lerp, mul, norm, rng, sub, yawTo, type V3 } from '../shared/vec.ts';
+import { clear, inside, type Prim, type World } from '../shared/geom.ts';
 import { FLOOR_H, type Solved } from './solve.ts';
 
 export function dress(s: Solved): World {

@@ -1,13 +1,15 @@
 {
   "name": "frameseeker",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Story moment -> gray-box 3D scene -> composition-scored camera search -> structure maps for ControlNet",
   "scripts": {
-    "shot": "node src/cli.ts",
-    "eval": "node src/eval-cli.ts",
-    "refs:select": "node src/refs-select.ts",
+    "frameseeker": "node src/cli/run.ts",
+    "shot": "node src/cli/shot.ts",
+    "stage": "node src/cli/stage.ts",
+    "eval": "node src/cli/eval.ts",
+    "refs:select": "node src/cli/refs-select.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

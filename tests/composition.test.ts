@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { composition, diagonalDistance, isDiagonal, thirdLineDistance } from '../src/composition2d.ts';
+import { composition, diagonalDistance, isDiagonal, thirdLineDistance } from '../src/camera/composition2d.ts';
 
 describe('Liu et al. 2010 composition scores', () => {
   it('LC1 a subject on a power point at a typical size: the paper\'s formulas by hand', () => {

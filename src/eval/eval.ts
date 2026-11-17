@@ -1,15 +1,15 @@
 // Evaluation A (DESIGN.md §6.6.3): does the scorer rank the camera a film crew chose above the cameras it could have
 // chosen? For each rebuilt reference shot: the reference camera's score, its percentile among valid random cameras
 // (the search's own prior, in the reference's format), and whether the search's top 3 contain a camera near it.
-import { dist, norm, rng, sub } from './vec.ts';
-import { frame, project, type Cam } from './camera.ts';
-import { clear } from './geom.ts';
-import { solve } from './solve.ts';
-import { dress } from './dress.ts';
-import { context, evaluate, TERMS, type Evaluation, type Term } from './score.ts';
-import { sampler, search, type Candidate } from './search.ts';
+import { dist, norm, rng, sub } from '../shared/vec.ts';
+import { frame, project, type Cam } from '../camera/camera.ts';
+import { clear } from '../shared/geom.ts';
+import { solve } from '../scene/solve.ts';
+import { dress } from '../scene/dress.ts';
+import { context, evaluate, TERMS, type Evaluation, type Term } from '../camera/score.ts';
+import { sampler, search, type Candidate } from '../camera/search.ts';
 import { rebuild, REF_H, REF_W, type RefFrame } from './refs.ts';
-import { KP } from './poses.ts';
+import { KP } from '../scene/poses.ts';
 
 export interface RefResult {
   id: string;

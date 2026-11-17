@@ -1,5 +1,9 @@
 // A minimal OpenAI-compatible chat client (the caller chooses the provider). Tests use Venice with the key file.
 import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+const KEY_FILE = join(homedir(), '.secrets', 'venice.key');
 
 export interface ChatMsg { role: 'system' | 'user' | 'assistant'; content: string }
 export type Chat = (messages: ChatMsg[], opts?: { maxTokens?: number; temperature?: number }) => Promise<string>;
@@ -22,10 +26,10 @@ export function openAiChat(cfg: { baseUrl: string; apiKey: string; model: string
   return Object.assign(chat, { spent: () => usd });
 }
 
-/** Venice with the local test key (C:\Users\agent\.secrets\venice.key): testing only. */
+/** Venice: the key from VENICE_API_KEY, else the local test key file (testing only). */
 export function veniceChat(model = 'deepseek-v4-1-flash') {
   return openAiChat({
-    baseUrl: 'https://api.venice.ai/api/v1', apiKey: readFileSync('C:/Users/agent/.secrets/venice.key', 'utf8').trim(), model,
+    baseUrl: 'https://api.venice.ai/api/v1', apiKey: process.env.VENICE_API_KEY ?? readFileSync(KEY_FILE, 'utf8').trim(), model,
     extra: { venice_parameters: { include_venice_system_prompt: false, enable_web_search: 'off' } },
   });
 }

@@ -1,14 +1,14 @@
-// node src/eval-cli.ts [eval/refs/<episode>.annot.json ...] [--only id] [--n 3000] [--previews]
+// npm run eval -- [eval/refs/<episode>.annot.json ...] [--only id] [--n 3000] [--previews]
 // Evaluation A over the annotated reference shots: prints a table and writes out/eval/report.json (and, with
 // --previews, the rebuilt scene seen by each reference camera, to check the rebuild against the frame).
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { evalRef, type RefResult } from './eval.ts';
-import { rebuild, type RefFrame } from './refs.ts';
-import { solve } from './solve.ts';
-import { dress } from './dress.ts';
-import { preview } from './render.ts';
-import { encodePng } from './png.ts';
+import { evalRef, type RefResult } from '../eval/eval.ts';
+import { rebuild, type RefFrame } from '../eval/refs.ts';
+import { solve } from '../scene/solve.ts';
+import { dress } from '../scene/dress.ts';
+import { preview } from '../camera/render.ts';
+import { encodePng } from '../shared/png.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };

@@ -1,12 +1,11 @@
 // Stage 4 (part): the gray-box preview for people, and the depth map (CPU ray casting).
-import { add, dist, dot, lerp, mul, norm, sub, type V3 } from './vec.ts';
-import { cast, inside, raySphere, type World } from './geom.ts';
+import { add, dist, dot, lerp, mul, norm, sub, type V3 } from '../shared/vec.ts';
+import { cast, inside, raySphere, type World } from '../shared/geom.ts';
 import { frame, project, ray, SIZE, type Cam } from './camera.ts';
-import { BONES } from './poses.ts';
-import type { Solved } from './solve.ts';
+import { BONES } from '../scene/poses.ts';
+import type { Solved } from '../scene/solve.ts';
 import { faceDir } from './score.ts';
-
-export interface Image { width: number; height: number; channels: 1 | 3; pixels: Uint8Array }
+import type { Image } from '../shared/image.ts';
 
 const LIGHT = norm([0.4, 0.8, 0.3]);
 const ACTOR_COLOURS: [number, number, number][] = [[220, 60, 60], [60, 110, 230], [60, 170, 90], [230, 150, 40], [150, 80, 200], [40, 180, 190]];

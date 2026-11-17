@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { rebuild, REF_H, REF_W, type RefFrame } from '../src/refs.ts';
-import { solve } from '../src/solve.ts';
-import { frame, project, type Cam } from '../src/camera.ts';
-import { KP } from '../src/poses.ts';
-import { ACTION_SCALES, faceScore, shotScaleScore } from '../src/score.ts';
-import type { Scene } from '../src/scene.ts';
+import { rebuild, REF_H, REF_W, type RefFrame } from '../src/eval/refs.ts';
+import { solve } from '../src/scene/solve.ts';
+import { frame, project, type Cam } from '../src/camera/camera.ts';
+import { KP } from '../src/scene/poses.ts';
+import { ACTION_SCALES, faceScore, shotScaleScore } from '../src/camera/score.ts';
+import type { Scene } from '../src/scene/types.ts';
 
 describe('reference rebuild (single-view metrology)', () => {
   it('RF1 annotations made from a known camera give that camera and those positions back', () => {

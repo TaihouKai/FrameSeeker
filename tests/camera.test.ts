@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { frame, project, ray } from '../src/camera.ts';
-import { solve } from '../src/solve.ts';
-import { dress } from '../src/dress.ts';
-import { context, evaluate } from '../src/score.ts';
-import { search } from '../src/search.ts';
-import { add, mul, sub, type V3 } from '../src/vec.ts';
-import type { Scene } from '../src/scene.ts';
+import { frame, project, ray } from '../src/camera/camera.ts';
+import { solve } from '../src/scene/solve.ts';
+import { dress } from '../src/scene/dress.ts';
+import { context, evaluate } from '../src/camera/score.ts';
+import { search } from '../src/camera/search.ts';
+import { add, mul, sub, type V3 } from '../src/shared/vec.ts';
+import type { Scene } from '../src/scene/types.ts';
 
 const load = (name: string) => {
   const s = solve(JSON.parse(readFileSync(`scenes/${name}.json`, 'utf8')) as Scene);

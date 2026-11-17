@@ -2,9 +2,9 @@
 // which ones stand. A proposal may only add set pieces or move what the text leaves open, must name its purpose,
 // and is refused when it breaks the scene (the solver) or stands in the action's way.
 import { solve } from '../solve.ts';
-import { clear } from '../geom.ts';
-import { lerp } from '../vec.ts';
-import type { Scene, Structure } from '../scene.ts';
+import { clear } from '../../shared/geom.ts';
+import { lerp } from '../../shared/vec.ts';
+import type { Scene, Structure } from '../types.ts';
 import { jsonOf, type Chat } from './chat.ts';
 import { STRUCTURE_KINDS, vocabulary } from './vocab.ts';
 import type { Extracted } from './extract.ts';

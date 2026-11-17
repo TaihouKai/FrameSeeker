@@ -1,6 +1,6 @@
 // Stage 3 search (DESIGN.md §6.3): random cameras around the focus, the rejected dropped, the best refined by local
 // search, then the top K that differ from each other. Seeded: the same scene and seed give the same shots.
-import { add, dist, lerp, mul, norm, rng, sub, type V3 } from './vec.ts';
+import { add, dist, lerp, mul, norm, rng, sub, type V3 } from '../shared/vec.ts';
 import { FOCALS, type Aspect, type Cam } from './camera.ts';
 import { evaluate, type Ctx, type Evaluation } from './score.ts';
 
