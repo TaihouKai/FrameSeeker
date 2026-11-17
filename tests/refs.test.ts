@@ -3,7 +3,7 @@ import { rebuild, REF_H, REF_W, type RefFrame } from '../src/refs.ts';
 import { solve } from '../src/solve.ts';
 import { frame, project, type Cam } from '../src/camera.ts';
 import { KP } from '../src/poses.ts';
-import { shotScaleScore } from '../src/score.ts';
+import { faceScore, shotScaleScore } from '../src/score.ts';
 import type { Scene } from '../src/scene.ts';
 
 describe('reference rebuild (single-view metrology)', () => {
@@ -46,5 +46,13 @@ describe('reference rebuild (single-view metrology)', () => {
     expect(at('LS')).toBeGreaterThan(at('XLS'));
     expect(at('CU')).toBeGreaterThan(at('XCU'));
     expect(shotScaleScore(0.01)).toBe(0);
+  });
+
+  it('RF3 face angle: the front preferred, three-quarter less, a back still a choice (never zero)', () => {
+    expect(faceScore(0)).toBe(1);
+    expect(faceScore(30)).toBe(1);
+    expect(faceScore(80)).toBeCloseTo(0.44, 6);
+    expect(faceScore(180)).toBeCloseTo(0.22, 6);
+    for (let a = 0; a < 180; a += 5) expect(faceScore(a + 5)).toBeLessThanOrEqual(faceScore(a));
   });
 });

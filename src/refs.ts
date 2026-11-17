@@ -14,6 +14,8 @@ export const DEFAULT_HEIGHT = 1.6;
 export const HEAD_LEN = 0.15;
 /** used when no two vanishing points give the focal length */
 export const DEFAULT_FOCAL = 35;
+/** a camera on the ground (the search's lowest is 0.3 m too) */
+export const MIN_CAMERA_HEIGHT = 0.3;
 
 type Px = [number, number];
 export interface RefPerson {
@@ -139,7 +141,9 @@ export function rebuild(r: RefFrame): Rebuilt {
     } else throw new Error(`${r.id}/${p.id}: needs feet or chin`);
   }
   if (!heights.length) throw new Error(`${r.id}: no camera height`);
-  const h = [...heights].sort((a, b) => a - b)[Math.floor(heights.length / 2)];
+  let h = [...heights].sort((a, b) => a - b)[Math.floor(heights.length / 2)];
+  // an estimated pitch can put the camera underground (a low shot looking up): the lowest a camera goes
+  if (h < MIN_CAMERA_HEIGHT) { h = MIN_CAMERA_HEIGHT; estimated.push('camera height (clamped)'); }
   const pos = where(h);
   const scene: Scene = {
     version: 1,

@@ -3,6 +3,7 @@
 // (the search's own prior, in the reference's format), and whether the search's top 3 contain a camera near it.
 import { dist, norm, rng, sub } from './vec.ts';
 import { frame, project, type Cam } from './camera.ts';
+import { clear } from './geom.ts';
 import { solve } from './solve.ts';
 import { dress } from './dress.ts';
 import { context, evaluate, TERMS, type Evaluation, type Term } from './score.ts';
@@ -13,6 +14,8 @@ import { KP } from './poses.ts';
 export interface RefResult {
   id: string;
   estimated: string[];
+  /** false when the rebuild contradicts the frame (the focus's head hidden): counted apart from the scorer's results */
+  rebuild_ok: boolean;
   /** pixels: the rebuilt scene seen by the reference camera against the annotation */
   reprojection_px: number;
   camera: { height: number; pitch_deg: number; focal: number };
@@ -34,8 +37,14 @@ export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?
   const b = rebuild(r);
   const solved = solve(b.scene), world = dress(solved), ctx = context(solved, world);
   const ref = evaluate(ctx, b.cam);
+  // the rebuild must agree with the frame: the focus's head is seen there (it was annotated), so if the gray box hides
+  // it from the reference camera the rebuild is wrong (people drawn thinner than the gray-box body), not the scorer
+  const fr = frame(b.cam);
+  const headPts = [ctx.focus.head, ctx.focus.points[KP.nose], ctx.focus.points[KP.rEye], ctx.focus.points[KP.lEye]];
+  const hidden = headPts.filter((p) => !clear(world, b.cam.pos, p, new Set([ctx.focus.id]))).length;
+  const rebuild_ok = hidden <= headPts.length / 2;
   // reprojection: crowns and feet of the rebuilt people against the annotation
-  const f = frame(b.cam);
+  const f = fr;
   let se = 0, n = 0;
   for (const p of r.people) {
     const a = solved.actors.get(p.id)!;
@@ -62,7 +71,7 @@ export function evalRef(r: RefFrame, opts: { n?: number; seed?: number; searchN?
   const res = search(ctx, { n: opts.searchN ?? 4000, seed: opts.seed ?? 1, k: 3, aspects: ['wide'] });
   const top = res.candidates.map((c) => closeness(c, b.cam, ctx.focus.head as [number, number, number]));
   return {
-    id: r.id, estimated: b.estimated, reprojection_px: n ? Math.sqrt(se / n) : NaN,
+    id: r.id, estimated: b.estimated, rebuild_ok, reprojection_px: n ? Math.sqrt(se / n) : NaN,
     camera: { height: b.cam.pos[1], pitch_deg: Math.atan(b.cam.target[1] - b.cam.pos[1]) * 180 / Math.PI, focal: b.cam.focal },
     ref, percentile: valid.length ? below / valid.length : NaN, valid: valid.length,
     top, near_in_top3: top.some((t) => t.angle < NEAR_ANGLE && t.distance_ratio < NEAR_RATIO), terms,

@@ -21,6 +21,21 @@ export const WEIGHTS: Record<Intent, Record<Term, number>> = {
 
 /** A scale shot: the person small against what is big ([zero, full, full, zero], person height / frame height). */
 const SCALE_SIZE: [number, number, number, number] = [0.02, 0.05, 0.22, 0.4];
+/** An establishing shot with nothing big in it: extreme long to long shot (XLS 0.45 – LS 0.92 by SHOT_SCALES). */
+const WIDE_SIZE: [number, number, number, number] = [0.015, 0.2, 1.0, 1.6];
+/**
+ * Face angle (0 = towards the camera, 180 = the back): reference shots (DESIGN.md §6.6.5, 43 dev shots) over a
+ * uniform camera, normalized by the front bin: under 60° 27/43 vs 1/3 → 1; 60–100° 8/43 vs 2/9 → 0.44;
+ * over 100° 8/43 vs 4/9 → 0.22. Piecewise linear between the bin centres.
+ */
+export const FACE_BINS: [angle: number, score: number][] = [[30, 1], [80, 0.44], [140, 0.22]];
+export function faceScore(angle: number): number {
+  const b = FACE_BINS;
+  if (angle <= b[0][0]) return b[0][1];
+  if (angle >= b[b.length - 1][0]) return b[b.length - 1][1];
+  const i = b.findIndex((x) => x[0] > angle) - 1;
+  return b[i][1] + (b[i + 1][1] - b[i][1]) * (angle - b[i][0]) / (b[i + 1][0] - b[i][0]);
+}
 /**
  * Shot scale as films use it: Cutting 2015 (Art & Perception), 13 956 frames from 48 popular films, 1935–2010:
  * XLS 8%, LS 14%, MLS 24%, MS 30%, MCU 16%, CU 6%, XCU 1%. Score = the scale's frequency over the most common (MS).
@@ -168,8 +183,9 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   terms.composition = comp.E;
   info.liu_rt = comp.RT; info.liu_da = comp.DA ?? -1; info.liu_vb = comp.VB; info.liu_sz = comp.SZ;
   // scale: a low camera looking up at something big makes it big (low-angle shot)
-  const big = ctx.payoff && ctx.payoff.height > 15;
-  if (big || ctx.intent === 'scale') {
+  // only with something big to show: an establishing shot of a room or a street is not a low-angle scale shot
+  const big = !!ctx.payoff && ctx.payoff.height > 15;
+  if (big) {
     const low = tri(info.camera_height, -1, 0, 2, 8);
     const up = tri(info.pitch, -5, 10, 35, 55);
     let size = 0.5;
@@ -193,7 +209,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   }
   info.sky = sky / (gx * gy); info.edge_near = edgeNear / edge; info.middle_blocked = mid ? midNear / mid : 0;
   // open sky gives room for scale
-  if (ctx.intent === 'scale' || ctx.intent === 'reveal') terms.sky = tri(info.sky, 0.08, 0.25, 0.6, 0.85);
+  if (big) terms.sky = tri(info.sky, 0.08, 0.25, 0.6, 0.85);
   // near things at the edges frame the shot (Mateu-Mestre, Framed Ink: framing devices); nothing near in the middle
   terms.framing = tri(info.edge_near, 0.03, 0.15, 0.6, 0.9) * (info.middle_blocked > 0.2 ? 0.4 : 1);
   // how big the focus person is, for what the shot is for (shot size: Mascelli, Katz)
@@ -203,12 +219,15 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   if (info.subject_size < 0.015) return reject('focus too small');
   // with the payoff far from the focus both cannot be big: judge the person's size as in a wide shot
   const far = ctx.payoff && dist(ctx.focus.head, ctx.payoff.points.reduce((a, b) => add(a, mul(b, 1 / ctx.payoff!.points.length)), [0, 0, 0] as V3)) > 30;
-  terms.subject_size = far || ctx.intent === 'scale' ? tri(info.subject_size, ...SCALE_SIZE) : shotScaleScore(info.subject_size);
-  // the face carries the moment: front to three-quarter view (the way the face points, so a look back counts).
-  // Not a hard rule: films do play emotional beats on a back (4 of 30 reference shots, DESIGN.md §6.6.3)
+  // a person small against something big (scale); an establishing shot without one: long to extreme long shot
+  // (Cutting 2015's definitions: XLS the setting well beyond the figure, LS head to feet); else films' shot scales
+  terms.subject_size = far || (ctx.intent === 'scale' && big) ? tri(info.subject_size, ...SCALE_SIZE)
+    : ctx.intent === 'scale' ? tri(info.subject_size, ...WIDE_SIZE) : shotScaleScore(info.subject_size);
+  // which way the face is seen: the reference shots' frequency over a uniform camera's (a likelihood ratio in three
+  // coarse bins, DESIGN.md §6.6.5), so the front is preferred but a back is a choice films make (19% of them)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
-  terms.face = info.face_angle <= 60 ? 1 : info.face_angle <= 100 ? 1 - 0.7 * (info.face_angle - 60) / 40 : 0.1;
+  terms.face = faceScore(info.face_angle);
   // look room / lead room: space in front of where they face (Mascelli: composition)
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));
   if (ahead) {
@@ -226,11 +245,19 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
       if (p && (Math.abs(p.u) < 0.025 || Math.abs(1 - p.u) < 0.025 || Math.abs(p.v) < 0.025 || Math.abs(1 - p.v) < 0.025)) cuts++;
     }
   }
-  terms.joint_cut = Math.max(0, 1 - 0.5 * cuts);
-  // key people should not pile up on the screen
-  const boxes = [...ctx.solved.actors.values()].map((a) => bbox(a.points.map((p) => project(f, p)).filter(Boolean) as { u: number; v: number }[])).filter(Boolean) as Box2[];
+  // a preference, not a veto: 12 of 43 reference shots measure a cut joint (their rebuild is ±20 px, more than the
+  // 2.5% tolerance), so one cut costs a quarter and the term stops at a half
+  terms.joint_cut = Math.max(0.5, 1 - 0.25 * cuts);
+  // the subject should not be covered by someone nearer (Bares et al. 2000: minimize the primary object's occlusion;
+  // others overlapping each other adds depth and is fine)
+  const box2 = (a: SolvedActor) => bbox(a.points.map((p) => project(f, p)).filter(Boolean) as { u: number; v: number }[]);
+  const fb = box2(ctx.focus);
   let worst = 0;
-  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) worst = Math.max(worst, overlapRatio(boxes[i], boxes[j]));
+  if (fb) for (const a of ctx.solved.actors.values()) {
+    if (a.id === ctx.focus.id || dist(cam.pos, a.head) >= focusDist) continue;
+    const b = box2(a);
+    if (b) worst = Math.max(worst, coverRatio(fb, b));
+  }
   terms.overlap = worst <= 0.3 ? 1 : Math.max(0, 1 - (worst - 0.3) / 0.7);
   // tall payoffs suit portrait, flat crossings suit landscape
   terms.aspect = big ? (cam.aspect === 'portrait' ? 1 : 0.4) : ctx.line && theta < 30 ? (cam.aspect !== 'portrait' ? 1 : 0.4) : 0.7;
@@ -310,10 +337,10 @@ function bbox(ps: { u: number; v: number }[]): Box2 | null {
   if (!ps.length) return null;
   return { u0: Math.min(...ps.map((p) => p.u)), u1: Math.max(...ps.map((p) => p.u)), v0: Math.min(...ps.map((p) => p.v)), v1: Math.max(...ps.map((p) => p.v)) };
 }
-function overlapRatio(a: Box2, b: Box2): number {
+/** How much of `a` the box `b` covers. */
+function coverRatio(a: Box2, b: Box2): number {
   const iu = Math.max(0, Math.min(a.u1, b.u1) - Math.max(a.u0, b.u0)), iv = Math.max(0, Math.min(a.v1, b.v1) - Math.max(a.v0, b.v0));
-  const area = (x: Box2) => Math.max(1e-6, (x.u1 - x.u0) * (x.v1 - x.v0));
-  return (iu * iv) / Math.min(area(a), area(b));
+  return (iu * iv) / Math.max(1e-6, (a.u1 - a.u0) * (a.v1 - a.v0));
 }
 function segPointDist(a: [number, number], b: [number, number], p: [number, number], ar: number): number {
   const ax = a[0], ay = a[1] * ar, bx = b[0], by = b[1] * ar, px = p[0], py = p[1] * ar;

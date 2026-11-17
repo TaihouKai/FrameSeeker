@@ -26,18 +26,23 @@ for (const r of refs) {
   }
   const x = evalRef(r, { n });
   results.push(x);
-  const status = x.ref.ok ? x.ref.total.toFixed(3) : `REJECTED (${x.ref.reject})`;
+  const status = !x.rebuild_ok ? 'REBUILD FAILED (focus hidden)' : x.ref.ok ? x.ref.total.toFixed(3) : `REJECTED (${x.ref.reject})`;
   console.log(`${x.id.padEnd(18)} ref ${status.padEnd(28)} pct ${isNaN(x.percentile) ? '-' : (x.percentile * 100).toFixed(0).padStart(3)}%  top3 ${x.near_in_top3 ? 'HIT ' : 'miss'}  reproj ${x.reprojection_px.toFixed(0)}px  h ${x.camera.height.toFixed(2)}m pitch ${x.camera.pitch_deg.toFixed(0)}° ${x.camera.focal.toFixed(0)}mm${x.estimated.length ? '  est: ' + x.estimated.join(',') : ''}`);
 }
-const ok = results.filter((x) => x.ref.ok);
-const pcts = ok.map((x) => x.percentile).sort((a, b) => a - b);
+// the scorer is judged on the shots whose rebuild agrees with the frame; rebuild failures are reported apart
+const valid = results.filter((x) => x.rebuild_ok);
+const ok = valid.filter((x) => x.ref.ok);
+// a rejected reference counts as the 0th percentile
+const pcts = valid.map((x) => (x.ref.ok ? x.percentile : 0)).sort((a, b) => a - b);
 const summary = {
   refs: results.length,
-  rejected: results.length - ok.length,
-  rejections: Object.fromEntries([...new Set(results.filter((x) => !x.ref.ok).map((x) => x.ref.reject!))].map((k) => [k, results.filter((x) => x.ref.reject === k).length])),
+  rebuild_failed: results.length - valid.length,
+  scored: valid.length,
+  rejected: valid.length - ok.length,
+  rejections: Object.fromEntries([...new Set(valid.filter((x) => !x.ref.ok).map((x) => x.ref.reject!))].map((k) => [k, valid.filter((x) => x.ref.reject === k).length])),
   median_percentile: pcts.length ? pcts[Math.floor(pcts.length / 2)] : null,
   at_or_above_95: ok.filter((x) => x.percentile >= 0.95).length,
-  top3_hits: results.filter((x) => x.near_in_top3).length,
+  top3_hits: valid.filter((x) => x.near_in_top3).length,
 };
 console.log('\n' + JSON.stringify(summary));
 writeFileSync('out/eval/report.json', JSON.stringify({ summary, results }, null, 1));
