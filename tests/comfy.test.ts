@@ -92,7 +92,7 @@ describe('ComfyUI generator', () => {
     const srv = await fakeComfy();
     try {
       const w = realize(scene), shot = shoot(w, { n: 400, refine: 3, iters: 5, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
-      const gen = comfyGenerator({ url: srv.url, headers: { 'x-api-key': 'k' }, models, pollEvery: 5 });
+      const gen = comfyGenerator({ url: srv.url, headers: { 'x-api-key': 'k' }, models, pollEvery: 5, tagger: null });
       const { image: img } = await gen.generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832, seed: 7 });
       expect(srv.seen.problems).toEqual([]);
       expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
@@ -135,7 +135,7 @@ describe('ComfyUI generator', () => {
     try {
       const w = realize(scene), shot = shoot(w, { n: 300, refine: 2, iters: 4, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
       const cfg = comfyConfigFromEnv({ COMFY_URL: `${srv.url}/api`, COMFY_API_KEY: 'k', COMFY_CHECKPOINT: 'x.safetensors', COMFY_CN_DEPTH: 'd.safetensors' })!;
-      const { image: img } = await comfyGenerator({ ...cfg, pollEvery: 5, candidates: 1, detectPose: false }).generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832 });
+      const { image: img } = await comfyGenerator({ ...cfg, pollEvery: 5, candidates: 1, detectPose: false, tagger: null }).generate({ maps: m, prompt: promptOf(scene, shot), width: 1216, height: 832 });
       expect(srv.seen.problems).toEqual([]);
       expect(srv.seen.auth.every((a) => a === 'k')).toBe(true);
       expect(img).toEqual(decodePng(srv.picture));
@@ -154,7 +154,7 @@ describe('ComfyUI generator', () => {
       files: { 'c0.png': pic(10), 'c1.png': pic(200) },
     });
     try {
-      const r = await comfyGenerator({ url: srv.url, models, pollEvery: 5, candidates: 2, detectPose: true }).generate({ maps: m, prompt: promptOf(scene, shot, m.people), width: W, height: H });
+      const r = await comfyGenerator({ url: srv.url, models, pollEvery: 5, candidates: 2, detectPose: true, tagger: null }).generate({ maps: m, prompt: promptOf(scene, shot, m.people), width: W, height: H });
       expect(srv.seen.problems).toEqual([]);
       const g = srv.seen.graph!;
       expect(Object.values(g).find((n) => n.class_type === 'EmptyLatentImage')!.inputs.batch_size).toBe(2);
@@ -162,6 +162,27 @@ describe('ComfyUI generator', () => {
       expect(r.checks!.map((c) => c.score)).toEqual([0, 1]);
       expect(r.image.pixels[0]).toBe(200);
       expect(r.check!.people.every((p) => p.found && p.facing !== 'flipped')).toBe(true);
+    } finally { srv.close(); }
+  });
+
+  it('CF8 with a tagger: of two pictures with the people in place, the one drawing the boy as a boy is kept', async () => {
+    const boyScene = { ...scene, actors: scene.actors.map((a, i) => ({ ...a, prompt: { ...a.prompt, look: [i === 0 ? '1boy' : '1girl', ...a.prompt.look.filter((t) => !/^1(boy|girl)$/.test(t))] } })) };
+    const w = realize(boyScene), shot = shoot(w, { n: 400, refine: 3, iters: 5, k: 1 }).shots[0], m = maps(w, shot.cam, { scale: 0.25 });
+    const W = 1216, H = 832, boy = boyScene.actors[0].id;
+    const frame = { canvas_width: W, canvas_height: H, people: m.people.map((p) => ({ pose_keypoints_2d: p.joints.flatMap((j) => j ? [j[0] * W, j[1] * H, 1] : [0, 0, 0]) })) };
+    const pic = (v: number) => encodePng(8, 4, new Uint8Array(8 * 4 * 3).fill(v), 3);
+    const srv = await fakeComfy(false, {
+      outputs: { save: { images: [0, 1].map((i) => ({ filename: `c${i}.png`, subfolder: '', type: 'output' })) }, pose: { openpose_json: [JSON.stringify([frame, frame])] } },
+      files: { 'c0.png': pic(10), 'c1.png': pic(200) },
+    });
+    // a stand-in tagger: the girl always looks a girl; the boy looks a girl in the dark picture, a boy in the bright one
+    const boyBox = m.regions.find((r) => r.id === boy)!.box;
+    const tagger = { tag: async (img: { pixels: Uint8Array }, box: number[]) => { const asBoy = box === boyBox && img.pixels[0] > 100; return new Map([['1girl', asBoy ? 0.05 : 0.9], ['1boy', asBoy ? 0.9 : 0.05]]); } };
+    try {
+      const r = await comfyGenerator({ url: srv.url, models, pollEvery: 5, candidates: 2, detectPose: true, tagger }).generate({ maps: m, prompt: promptOf(boyScene, shot, m.people), width: W, height: H });
+      expect(r.checks![0].people.find((p) => p.id === boy)!.gender).toBe('wrong');
+      expect(r.checks![1].people.find((p) => p.id === boy)!.gender).toBe('ok');
+      expect(r.image.pixels[0]).toBe(200);
     } finally { srv.close(); }
   });
 

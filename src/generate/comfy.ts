@@ -4,7 +4,8 @@
 import { randomUUID } from 'node:crypto';
 import { toPng, type Image } from '../shared/image.ts';
 import { decodePng } from '../shared/png.ts';
-import { bestCandidate, checkPose, type Joints, type PoseCheck } from './check.ts';
+import { bestCandidate, checkPose, genderVerdict, type Joints, type PoseCheck, type Verdict } from './check.ts';
+import { loadTagger, type Tagger } from './tagger.ts';
 import { OUTPUT_NODE, POSE_NODE, workflow, type ComfyModels, type ComfySampling, type Graph, type WorkflowInput } from './workflow.ts';
 import { GeneratorUnavailable, type GenerateInput, type GenerateResult, type Generator } from './types.ts';
 
@@ -24,6 +25,8 @@ export interface ComfyConfig {
   candidates?: number;
   /** run a pose detector on each picture (needs comfyui_controlnet_aux's DWPreprocessor on the server) */
   detectPose?: boolean;
+  /** the image-board tagger for each person's gender: null = none; absent = loaded if installed (npm run get-tagger) */
+  tagger?: Tagger | null;
   /** give up after this long (ms) */
   timeout?: number;
   pollEvery?: number;
@@ -144,13 +147,26 @@ async function run(cfg: ComfyConfig, input: GenerateInput, signal?: AbortSignal)
   /** the candidate whose people best follow the plan (when measured); only that one is downloaded */
   async function pickAndFetch(imgs: OutImage[], poseJson?: string[]): Promise<GenerateResult> {
     let checks: PoseCheck[] | undefined;
+    // each person's gender, by the tagger on their own pixels (every candidate is downloaded for it)
+    const tagger = cfg.tagger === undefined ? await loadTagger() : cfg.tagger;
+    const people = prompt.characters.filter((c) => c.tags.includes('1boy') || c.tags.includes('1girl'));
+    const pictures: (Image | undefined)[] = [];
+    const genders: Record<string, Verdict>[] = [];
+    if (tagger && people.length) for (const [k, im] of imgs.entries()) {
+      const pic = pictures[k] = decodePng(await view(im));
+      genders[k] = {};
+      for (const c of people) {
+        const r = maps.regions.find((g) => g.kind === 'person' && g.id === c.id);
+        if (r) genders[k][c.id] = genderVerdict(c.tags, await tagger.tag(pic, r.box, r.mask))!;
+      }
+    }
     if (detectPose && poseJson?.length) {
       // one JSON list of frames per string; a batch may come as one string or one per picture
       const frames = poseJson.flatMap((s) => JSON.parse(s) as DetectedFrame[]);
-      if (frames.length === imgs.length) checks = frames.map((f) => checkPose(maps.people, detectedJoints(f), f.canvas_width / f.canvas_height));
+      if (frames.length === imgs.length) checks = frames.map((f, k) => checkPose(maps.people, detectedJoints(f), f.canvas_width / f.canvas_height, genders[k]));
     }
     const k = checks ? bestCandidate(checks) : 0;
-    return { image: decodePng(await view(imgs[k])), check: checks?.[k], checks };
+    return { image: pictures[k] ?? decodePng(await view(imgs[k])), check: checks?.[k], checks };
   }
 
   /** /view returns the bytes (local) or a redirect to a signed storage URL (cloud), which must be fetched without our key */

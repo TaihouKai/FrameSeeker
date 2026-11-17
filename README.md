@@ -54,7 +54,7 @@ The frames and the annotations stay local; the evaluation code is in `src/eval/`
 
 ## Run
 
-Node ≥ 24 (runs TypeScript directly, no build), no runtime dependencies.
+Node ≥ 24 (runs TypeScript directly, no build); one optional dependency (onnxruntime-node, for the gender check).
 
 ```
 npm install
@@ -93,6 +93,9 @@ What the first runs on it taught (details in `src/generate/`):
   coordinates out) finds the people in each picture, and plain geometry (`src/generate/check.ts`) compares them
   with the planned skeletons: everyone found, near their place, facing the right way (the shoulders' left-right
   order). On 12 hand-judged pictures it passed no wrong one; it misses some right ones (a back at the frame's edge).
+  Each person's gender is measured too, by an image-board tagger (SmilingWolf's WD SwinV2 v3, on the CPU) on that
+  person's own pixels: `1boy` against `1girl`, the same vocabulary the prompts use. Optional: `npm run get-tagger`
+  (470 MB) and the optional dependency onnxruntime-node; without them the gender is not checked.
 - **Effects need a colour hint.** A beam is a few pixels in depth and line art; a shot with an effect in frame starts
   from a colour hint (the gray box with the sky of the scene's time of day, people grey) at denoise 0.9.
 
@@ -103,4 +106,4 @@ Without a server the pipeline still writes the maps and prompts and notes that n
 Phases 1–6 run end to end on Comfy Cloud. The generated pictures keep the gray box's composition (camera height,
 angle, lens, who is where). One picture alone gets every person right about 3 times in 4 in the hardest test so far
 (a back-view person in the foreground); with 4 candidates and the pose check, both classroom shots came out right.
-The check cannot see gender, or effects.
+The check cannot see effects.

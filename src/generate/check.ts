@@ -13,7 +13,10 @@ export interface PersonCheck {
   /** mean distance of the joints both have, as a fraction of the frame's diagonal */
   error?: number;
   facing?: 'ok' | 'flipped' | 'unknown';
+  /** drawn as the gender planned, by an image-board tagger on their own pixels (genderVerdict); absent: not measured */
+  gender?: Verdict;
 }
+export type Verdict = 'ok' | 'wrong' | 'unclear';
 export interface PoseCheck {
   /** (people found facing the right way − extra people) / people judged, at least 0; 1 = all as planned */
   score: number;
@@ -46,7 +49,7 @@ function facingOf(j: Joints): 'front' | 'back' | null {
 const plannedFacing = (angle: number): 'front' | 'back' | null => angle < 60 ? 'front' : angle > 120 ? 'back' : null;
 
 /** aspect: frame width / height (distances are measured in the frame, not in 0..1 of each side) */
-export function checkPose(planned: PlannedPose[], detected: Joints[], aspect: number): PoseCheck {
+export function checkPose(planned: PlannedPose[], detected: Joints[], aspect: number, gender: Record<string, Verdict> = {}): PoseCheck {
   const diag = Math.hypot(aspect, 1);
   const dist = (a: Joints, b: Joints): number => {
     const ds: number[] = [];
@@ -72,19 +75,34 @@ export function checkPose(planned: PlannedPose[], detected: Joints[], aspect: nu
 
   const people: PersonCheck[] = judgedPeople.map((p, i) => {
     const j = best.pick[i];
-    if (j === undefined || j < 0) return { id: p.id, found: false };
+    if (j === undefined || j < 0) return { id: p.id, found: false, gender: gender[p.id] };
     const want = plannedFacing(p.faceAngle), got = facingOf(detected[j]);
-    return { id: p.id, found: true, error: dist(p.joints, detected[j]), facing: !want || !got ? 'unknown' : want === got ? 'ok' : 'flipped' };
+    return { id: p.id, found: true, error: dist(p.joints, detected[j]), facing: !want || !got ? 'unknown' : want === got ? 'ok' : 'flipped', gender: gender[p.id] };
   });
   const matched = new Set(best.pick.filter((j) => j >= 0));
   const extra = detected.filter((d, j) => !matched.has(j) && d.filter(Boolean).length >= EXTRA_JOINTS).length;
-  const ok = people.filter((p) => p.found && p.facing !== 'flipped').length;
+  // a person counts when found, facing the right way and not drawn as the other gender; an unclear gender (a back at
+  // the frame's edge) counts three quarters
+  const ok = people.reduce((s, p) => s + (!p.found || p.facing === 'flipped' || p.gender === 'wrong' ? 0 : p.gender === 'unclear' ? 0.75 : 1), 0);
   const found = people.filter((p) => p.found);
   return {
     score: judgedPeople.length ? Math.max(0, (ok - extra) / judgedPeople.length) : 1,
     judged: judgedPeople.length, people, extra,
     error: found.length ? found.reduce((s, p) => s + p.error!, 0) / found.length : 0,
   };
+}
+
+/**
+ * The gender planned ("1boy" / "1girl" among their tags) against a tagger's probabilities on that person's own pixels:
+ * ok when the planned one leads by GENDER_MARGIN, wrong when the other does. On 12 hand-judged pictures the margin put
+ * every clear boy and girl right and every ambiguous face in between (|difference| under 0.2).
+ */
+export const GENDER_MARGIN = 0.3;
+export function genderVerdict(tags: string[], p: Map<string, number>): Verdict | undefined {
+  const want = tags.includes('1boy') ? '1boy' : tags.includes('1girl') ? '1girl' : null;
+  if (!want) return undefined;
+  const d = (p.get(want) ?? 0) - (p.get(want === '1boy' ? '1girl' : '1boy') ?? 0);
+  return d >= GENDER_MARGIN ? 'ok' : d <= -GENDER_MARGIN ? 'wrong' : 'unclear';
 }
 
 /** The best of several candidates: the highest score, then the smallest error, then the first. */
