@@ -9,7 +9,7 @@ import { vocabulary } from './vocab.ts';
 export type Extracted = Scene;
 
 const SHAPE = `{"place":{"kind":"street","description":"","tags":[],"width":20},"time":{"of_day":"sunset","weather":"clear"},
-"actors":[{"id":"a","pose":"stand","aim":null,"facing":null,"height":null,"place":{...},"prompt":{"tag":"","series":"","look":[],"outfit":[],"expression":[]}}],
+"actors":[{"id":"a","pose":"stand","aim":null,"facing":null,"looks_at":null,"height":null,"place":{...},"prompt":{"tag":"","series":"","look":[],"outfit":[],"expression":[]}}],
 "structures":[{"id":"","kind":"building","size":{},"place":{...},"facing":null,"prompt":[]}],
 "effects":[...],
 "moment":{"focus":"a","action_line":null,"payoff":null,"source":null,"intent":"scale|action|emotion|reveal","may_hide":[]}}`;
@@ -19,7 +19,7 @@ export const EXTRACT_PROMPT = `You turn ONE moment of a story into a scene descr
 THE MOMENT: if "focus" is given (the reader's own words for what to draw), that moment, as it says; otherwise the most striking instant of the text. Describe that one instant only.
 
 FAITHFUL: only what the text states or plainly implies. Do not add people, objects, powers, looks, clothes or effects; do not decorate (another step does staging). The place itself is fine (a street has a road).
-- actors: the people visible at that instant who matter, at most 6. pose: the closest name from POSES. aim: the anchor a pointing, firing or punching pose aims at (else null). facing: the id they face (else null). height: metres if the text or the description gives it (else null). prompt: English image-board (Danbooru) tags, one attribute per tag ("short hair", "black hair", never "short black hair"); look starts with "1girl", "1boy" or "1other" when the text or description says or plainly implies who they are; tag/series only for a known character of a published work whose image-board tag you know; look/outfit only from the text or their description.
+- actors: the people visible at that instant who matter, at most 6. pose: the closest name from POSES. aim: the anchor a pointing, firing or punching pose aims at (else null). facing: the id they face (else null). looks_at: what they look at when the text says so: an id or anchor, or a world point [x, y, z] in metres for something not built (the sky, the city below, a far-off light); else null. height: metres if the text or the description gives it (else null). prompt: English image-board (Danbooru) tags, one attribute per tag ("short hair", "black hair", never "short black hair"); look starts with "1girl", "1boy" or "1other" when the text or description says or plainly implies who they are; tag/series only for a known character of a published work whose image-board tag you know; look/outfit only from the text or their description.
 - place.tags: English image-board tags naming the place itself ("laboratory", "hospital room", "shrine"), never what is in it or the light.
 - structures: only the big things the moment involves (the building that is hit, the bridge someone stands on), and indoors what the text says the place is filled with (the tanks of a lab, the beds of a ward). Rough sizes, true to the world (a 30-storey tower is ~105 m; a street ~20 m wide; people talking stand ~1.5 m apart).
 - every actor and structure has "place" (one PLACEMENT form, as the text says or implies it: on the bridge, in the middle of the road, rising from the roof he left, behind her). What you write here is final: no later step moves anything.

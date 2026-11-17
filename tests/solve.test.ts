@@ -57,4 +57,20 @@ describe('solver', () => {
     const g = s.structures.get('gantry')!, f = s.actors.get('figure')!;
     expect(f.pos[1]).toBeCloseTo(g.box.c[1] + g.box.half[1], 5);
   });
+
+  it('SV-gaze what someone looks at: an id (that person head), an anchor, a world point; by default the id they face', async () => {
+    const { solve } = await import('../src/scene/solve.ts');
+    const base = JSON.parse(readFileSync('scenes/beam-clash.json', 'utf8'));
+    const withGaze = (looks: unknown) => ({ ...base, actors: base.actors.map((a: { id: string }) => a.id === 'dodger' ? { ...a, looks_at: looks } : a) });
+    const s1 = solve(withGaze('shooter'));
+    expect(s1.actors.get('dodger')!.gaze).toEqual(s1.actors.get('shooter')!.head);
+    const s2 = solve(withGaze('tower.top'));
+    expect(s2.actors.get('dodger')!.gaze![1]).toBeGreaterThan(50);
+    const s3 = solve(withGaze([5, 40, 200]));
+    expect(s3.actors.get('dodger')!.gaze).toEqual([5, 40, 200]);
+    // dodger faces the shooter (facing: "shooter"): looking at them by default; no facing id, no gaze
+    const s4 = solve(base);
+    expect(s4.actors.get('dodger')!.gaze).toEqual(s4.actors.get('shooter')!.head);
+    expect(s4.actors.get('shooter')!.gaze).toBeUndefined();
+  });
 });

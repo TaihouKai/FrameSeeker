@@ -10,6 +10,8 @@ export const FLOOR_H = 3.5;
 export interface SolvedActor {
   id: string; height: number; pos: V3; fwd: V3; pose: string; mirrored: boolean;
   points: V3[]; head: V3; headR: number; prims: Prim[];
+  /** the point they look at (looks_at, else the id they face), when there is one */
+  gaze?: V3;
 }
 export interface SolvedStructure {
   id: string; kind: Structure['kind']; pos: V3; yaw: number; front: V3;
@@ -262,6 +264,23 @@ export function solve(scene: Scene): Solved {
     }
     const lo = floors ? base + (floors[0] - 1) * FLOOR_H : base, hi = floors ? Math.min(base + floors[1] * FLOOR_H, base + s.height) : base + s.height;
     damages.set(e.id, { id: e.id, kind: e.kind, target: e.target, floors, box: { c: [s.box.c[0], (lo + hi) / 2, s.box.c[2]], half: [s.box.half[0] + 0.3, (hi - lo) / 2, s.box.half[2] + 0.3], yaw: s.box.yaw } });
+  }
+
+  // --- gaze: what each looks at (after everything is placed) ---
+  const thing = (ref: string): V3 => {
+    const [id, part] = ref.split('.');
+    if (!part) {
+      const a = actors.get(id); if (a) return a.head;
+      const l = lines.get(id); if (l) return lerp(l.a, l.b, 0.5);
+      const v = volumes.get(id); if (v) return v.c;
+      const d = damages.get(id); if (d) return d.box.c;
+    }
+    return anchor(ref);
+  };
+  for (const a of scene.actors) {
+    const look = a.looks_at ?? (typeof a.facing === 'string' ? a.facing : undefined);
+    if (look === undefined) continue;
+    actors.get(a.id)!.gaze = typeof look === 'string' ? thing(look) : [look[0], look[1], look[2]];
   }
 
   // --- checks ---

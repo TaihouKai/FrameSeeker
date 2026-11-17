@@ -3,4 +3,4 @@
 // (single-view metrology); then where does that camera rank among the search's random cameras, and does the search
 // find it? Reads the scene and camera modules through their index.ts only.
 export { evalRef, NEAR_ANGLE, NEAR_RATIO, type RefResult } from './eval.ts';
-export { rebuild, REF_W, REF_H, MIN_CAMERA_HEIGHT, type RefFrame, type RefPerson } from './refs.ts';
+export { rebuild, REF_W, REF_H, MIN_CAMERA_HEIGHT, type RefFrame, type RefPerson, type RefGaze } from './refs.ts';

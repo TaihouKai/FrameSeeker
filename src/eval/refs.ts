@@ -44,8 +44,17 @@ export interface RefFrame {
   /** vanishing points of two perpendicular horizontal directions: give the focal length */
   vps?: [Px, Px];
   people: RefPerson[];
+  /** what the focus looks at (see RefGaze) */
+  gaze?: RefGaze;
+  gaze_note?: string;
   note?: string;
 }
+/**
+ * What the focus looks at: another annotated person; a point in the frame, on the ground, far off (the view, the sky)
+ * or at about the focus's own distance (something they hold, a door before them); or out of the frame: to the left
+ * or right (along where they face), or towards the camera's side (someone where the camera stands, or the viewer).
+ */
+export type RefGaze = { at: string } | { point: Px; depth: 'ground' | 'far' | 'focus' } | { off: 'left' | 'right' | 'camera' };
 
 export interface Rebuilt {
   scene: Scene;
@@ -145,6 +154,22 @@ export function rebuild(r: RefFrame): Rebuilt {
   // an estimated pitch can put the camera underground (a low shot looking up): the lowest a camera goes
   if (h < MIN_CAMERA_HEIGHT) { h = MIN_CAMERA_HEIGHT; estimated.push('camera height (clamped)'); }
   const pos = where(h);
+  const cam = camAt(h, rollSign);
+  // the focus's gaze, as a point in the rebuilt world (camera at [0, h, 0] looking along +Z)
+  const fp = r.people.find((p) => p.id === r.focus);
+  let looksAt: string | [number, number, number] | undefined;
+  if (r.gaze && fp) {
+    const g = r.gaze, P = pos.get(fp.id)!, H = fp.height ?? DEFAULT_HEIGHT, eye = crownHeight(fp.pose, H) - 0.12 * H;
+    if ('at' in g) looksAt = g.at;
+    else if ('off' in g) {
+      if (g.off === 'camera') looksAt = [0, h, 0];
+      else { const yaw = (180 + fp.face) * Math.PI / 180; looksAt = [P[0] + 3 * Math.sin(yaw), eye, P[2] + 3 * Math.cos(yaw)]; }
+    } else {
+      const d = ray(frame(cam), ...uv(g.point));
+      const t = g.depth === 'ground' && d[1] < -1e-3 ? h / -d[1] : g.depth === 'focus' ? Math.hypot(P[0], P[2]) / Math.max(1e-3, Math.hypot(d[0], d[2])) : 80;
+      looksAt = [d[0] * t, h + d[1] * t, d[2] * t];
+    }
+  }
   const scene: Scene = {
     version: 1,
     place: { kind: 'other', description: r.note ?? r.id },
@@ -154,12 +179,13 @@ export function rebuild(r: RefFrame): Rebuilt {
       place: { at: [pos.get(p.id)![0], pos.get(p.id)![2]] as [number, number] },
       // camera looks along +Z; its screen right is -X (yaw -90°), the camera is at yaw 180°
       facing: 180 + p.face,
+      ...(p.id === r.focus && looksAt !== undefined ? { looks_at: looksAt } : {}),
       prompt: { look: [], outfit: [], expression: [] },
     })),
     structures: [], effects: [],
     moment: { focus: r.focus, intent: r.intent },
   };
-  return { scene, cam: camAt(h, rollSign), estimated, heights };
+  return { scene, cam, estimated, heights };
 }
 
 /** Height (with the ground at 0) where the vertical through P passes closest to the ray o + s·d. */

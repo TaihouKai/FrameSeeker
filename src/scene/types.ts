@@ -32,6 +32,11 @@ export interface Actor {
   place: Placement;
   /** who or what they face (an id), or a world yaw in degrees (0 faces +Z, 90 faces +X); default: the aim, else the other actors' centre */
   facing?: string | number;
+  /**
+   * what they look at, when the moment says: an id or anchor ("b", "tower.top", "beam"), or a world point [x, y, z] for
+   * something not built (helicopters in the sky, the view). Default: the id they face, if they face one.
+   */
+  looks_at?: string | [number, number, number];
 }
 
 export type StructureKind = 'building' | 'tower' | 'wall' | 'bridge' | 'truss' | 'vehicle' | 'tree' | 'rock' | 'crate' | 'pillar' | 'other';
