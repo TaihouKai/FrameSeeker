@@ -8,16 +8,31 @@ import type { Intent } from '../scene/types.ts';
 import type { Solved, SolvedActor } from '../scene/solve.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
-export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;
+export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'joint_cut', 'overlap', 'aspect', 'merger'] as const;
 export type Term = typeof TERMS[number];
 
 /** Weights by intent (starting values). */
 export const WEIGHTS: Record<Intent, Record<Term, number>> = {
-  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
-  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, lead_room: 1.5, joint_cut: 1, overlap: 1.5, aspect: 0.5, merger: 1 },
-  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, lead_room: 1, joint_cut: 1.5, overlap: 0.5, aspect: 0.5, merger: 1.5 },
-  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, tilt: 1, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1.5, joint_cut: 1, overlap: 1.5, aspect: 0.5, merger: 1 },
+  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, tilt: 2, lead_room: 1, joint_cut: 1.5, overlap: 0.5, aspect: 0.5, merger: 1.5 },
+  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1, joint_cut: 1, overlap: 1, aspect: 0.5, merger: 1 },
 };
+
+/**
+ * Camera tilt (pitch in degrees, + up): all 88 rebuilt dev shots (the pitch estimated by hand where the horizon is out
+ * of frame — those are the steep ones; leaving them out biased an earlier count against high angles) over the valid
+ * random cameras of the search's sampler on the same scenes (117 184), half a count added per bin. Only one bin has
+ * evidence: looking down over 45° (near top-down), 2 of 88 shots against 12.7% of random cameras (11 expected) →
+ * 0.21 of the rest. Down 20–45° is as common as chance (8 vs 8.0 expected); looking up over 30° is too rare among
+ * random cameras (0.3%, 0.26 shots expected) for 0 of 88 to mean anything, so it is not judged. Piecewise linear
+ * between the bin centres (-67.5° and -37.5°), as FACE_BINS.
+ */
+export const TILT_BINS: [pitch: number, score: number][] = [[-67.5, 0.2], [-37.5, 1]];
+export function tiltScore(pitchDeg: number): number {
+  const [[a, sa], [b, sb]] = TILT_BINS;
+  return pitchDeg <= a ? sa : pitchDeg >= b ? sb : sa + (sb - sa) * (pitchDeg - a) / (b - a);
+}
 
 /** A scale shot: the person small against what is big ([zero, full, full, zero], person height / frame height). */
 const SCALE_SIZE: [number, number, number, number] = [0.02, 0.05, 0.22, 0.4];
@@ -239,6 +254,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
   terms.face = faceScore(info.face_angle);
+  terms.tilt = tiltScore(info.pitch);
   // look room / lead room: space in front of where they face (Mascelli: composition)
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));
   if (ahead) {

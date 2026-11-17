@@ -288,8 +288,12 @@ function bodyPrims(a: SolvedActor): Prim[] {
   const cap = (x: V3, y: V3, r: number): Prim => ({ kind: 'capsule', a: x, b: y, r: r * h, owner: a.id, role: 'actor' });
   return [
     { kind: 'sphere', c: a.head, r: a.headR, owner: a.id, role: 'actor' },
-    cap(p[KP.neck], midHip, 0.1),
-    cap(p[KP.rShoulder], p[KP.lShoulder], 0.05),
+    cap(p[KP.neck], a.head, 0.028),
+    // a flat torso: a thin core and a side from each shoulder to its hip. (One round capsule of the torso's width had
+    // a cap bigger than the head; image models drew it as a second head.)
+    cap(p[KP.neck], midHip, 0.065),
+    cap(lerp(p[KP.rShoulder], p[KP.neck], 0.25), p[KP.rHip], 0.05),
+    cap(lerp(p[KP.lShoulder], p[KP.neck], 0.25), p[KP.lHip], 0.05),
     cap(p[KP.rHip], p[KP.lHip], 0.06),
     cap(p[KP.rShoulder], p[KP.rElbow], 0.035), cap(p[KP.rElbow], p[KP.rWrist], 0.03),
     cap(p[KP.lShoulder], p[KP.lElbow], 0.035), cap(p[KP.lElbow], p[KP.lWrist], 0.03),
