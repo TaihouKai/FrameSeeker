@@ -150,6 +150,13 @@ const GRID: Record<Aspect, [number, number]> = { portrait: [18, 27], landscape: 
 export function thirdsOnly(e: Evaluation): Evaluation {
   return e.ok ? { ...e, total: e.info.liu_rt ?? 0 } : e;
 }
+/**
+ * The published method as a baseline: the same hard constraints, then Liu et al. 2010's whole composition score E
+ * (rule of thirds, diagonal dominance, visual balance, region size, with the paper's weights) as the total.
+ */
+export function liuOnly(e: Evaluation): Evaluation {
+  return e.ok ? { ...e, total: e.terms.composition ?? 0 } : e;
+}
 
 export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const f = frame(cam);

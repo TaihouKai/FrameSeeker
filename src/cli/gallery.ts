@@ -1,14 +1,14 @@
 // npm run gallery -- <scene.json ...> [--out docs/gallery]
 // The README's gallery: for each scene, phases 3–5 (deterministic, no model, no network) and two images:
 //   <name>-shots.png  the top three shots as gray-box previews (people in colours, the focus red; thirds grid)
-//   <name>-maps.png   the first shot's structure maps, what a renderer receives: depth · line art · OpenPose ·
-//                     region masks (each person, effect, structure and labelled part of the set in its own colour)
+//   <name>-maps.png   the first shot's structure maps, what a renderer receives, two by two: depth · line art /
+//                     OpenPose · region masks (each person, effect, structure and part of the set in its own colour)
 // and gallery.json with each shot's score and camera.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { realize, type Scene } from '../scene/index.ts';
 import { maps, shoot, type Region } from '../camera/index.ts';
-import { hstack, toPng, type Image } from '../shared/image.ts';
+import { hstack, toPng, vstack, type Image } from '../shared/image.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
@@ -16,7 +16,7 @@ const out = opt('out') ?? join('docs', 'gallery');
 if (!args.length) { console.error('usage: npm run gallery -- <scene.json ...> [--out docs/gallery]'); process.exit(2); }
 mkdirSync(out, { recursive: true });
 
-const SHOTS_H = 240, MAPS_H = 200;
+const SHOTS_H = 360, MAPS_H = 300;
 const PEOPLE: [number, number, number][] = [[230, 70, 70], [70, 120, 235], [70, 180, 100], [235, 160, 50], [160, 90, 210], [50, 190, 200]];
 const ENV: Record<string, [number, number, number]> = {
   'env-wall': [110, 110, 120], 'env-ceiling': [150, 150, 130], 'env-floor': [120, 95, 75], 'env-window': [120, 170, 220],
@@ -44,12 +44,12 @@ for (const file of args) {
   const scene = JSON.parse(readFileSync(file, 'utf8')) as Scene;
   const w = realize(scene);
   const { shots } = shoot(w, { k: 3 });
-  const all = shots.map((s) => maps(w, s.cam, { scale: 0.5, previewScale: 0.5 }));
+  const all = shots.map((s) => maps(w, s.cam, { scale: 0.75, previewScale: 0.75 }));
   writeFileSync(join(out, `${name}-shots.png`), toPng(hstack(all.map((m) => m.preview), SHOTS_H)));
   // the focus first, as in the previews' colours
   const people = [scene.moment.focus, ...scene.actors.map((a) => a.id).filter((id) => id !== scene.moment.focus)];
   const m = all[0];
-  writeFileSync(join(out, `${name}-maps.png`), toPng(hstack([m.depth, m.lineart, m.pose, regionMap(m.regions, people)], MAPS_H)));
+  writeFileSync(join(out, `${name}-maps.png`), toPng(vstack([hstack([m.depth, m.lineart], MAPS_H), hstack([m.pose, regionMap(m.regions, people)], MAPS_H)])));
   summary.push({
     scene: file, moment: scene.moment,
     shots: shots.map((s) => ({ total: +s.total.toFixed(3), height_m: +s.cam.pos[1].toFixed(2), pitch_deg: +(s.info.pitch_deg ?? 0).toFixed(0), focal_mm: s.cam.focal, aspect: s.cam.aspect })),

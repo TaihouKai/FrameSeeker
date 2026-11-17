@@ -57,17 +57,18 @@ describe('composition search (calibration)', () => {
     }
   });
 
-  it('CS4 the evaluation baseline keeps the hard constraints and scores by the rule of thirds alone; the scorer is unchanged', async () => {
+  it('CS4 the evaluation baselines keep the hard constraints and score by the rule of thirds / Liu et al. composition alone; the scorer is unchanged', async () => {
     const { realize } = await import('../src/scene/index.ts');
     const { scorer } = await import('../src/camera/index.ts');
     const { rng } = await import('../src/shared/vec.ts');
     const w = realize(JSON.parse(readFileSync('scenes/classroom-talk.json', 'utf8')) as Scene);
-    const full = scorer(w), thirds = scorer(w, 'thirds'), next = full.random(rng(3), ['wide']);
+    const full = scorer(w), thirds = scorer(w, 'thirds'), liu = scorer(w, 'liu'), next = full.random(rng(3), ['wide']);
     let both = 0;
     for (let i = 0; i < 300; i++) {
       const cam = next(), a = full.evaluate(cam), b = thirds.evaluate(cam);
-      expect(b.ok).toBe(a.ok);
-      if (a.ok) { both++; expect(b.total).toBe(a.info.liu_rt); expect(a.total).toBe(evaluate(context(w.solved, w.world), cam).total); }
+      const c = liu.evaluate(cam);
+      expect(b.ok).toBe(a.ok); expect(c.ok).toBe(a.ok);
+      if (a.ok) { both++; expect(b.total).toBe(a.info.liu_rt); expect(c.total).toBe(a.terms.composition); expect(a.total).toBe(evaluate(context(w.solved, w.world), cam).total); }
     }
     expect(both).toBeGreaterThan(10);
   });

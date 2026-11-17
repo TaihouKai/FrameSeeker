@@ -40,3 +40,17 @@ export function hstack(images: Image[], height: number, gap = 8, background = 25
   }
   return { width: W, height, channels: 3, pixels: px };
 }
+
+/** One above the other (RGB), centred, with a gap of the given grey between them. */
+export function vstack(images: Image[], gap = 8, background = 255): Image {
+  const parts = images.map(toRgb);
+  const W = Math.max(...parts.map((p) => p.width)), H = parts.reduce((s, p) => s + p.height, 0) + gap * Math.max(0, parts.length - 1);
+  const px = new Uint8Array(W * H * 3).fill(background);
+  let oy = 0;
+  for (const p of parts) {
+    const ox = Math.floor((W - p.width) / 2);
+    for (let y = 0; y < p.height; y++) px.set(p.pixels.subarray(y * p.width * 3, (y + 1) * p.width * 3), ((oy + y) * W + ox) * 3);
+    oy += p.height + gap;
+  }
+  return { width: W, height: H, channels: 3, pixels: px };
+}

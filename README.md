@@ -2,6 +2,12 @@
 
 **A shot planner: from a moment in a story to camera placements and structure maps for any image renderer.**
 
+![left: the camera FrameSeeker chose, on a gray-box stage; right: an image model drawing that shot from its structure maps](docs/rendered/classroom-talk-1.jpg)
+
+*Left: the camera FrameSeeker chose, on a gray-box stage it built from the scene. Right: an image model (SDXL +
+ControlNet) drawing that shot from the structure maps. The camera, the people's places, the back in the foreground
+and the desk all carry over.*
+
 An LLM writes the moment as a scene (who stands where, what hits what); code builds a gray-box 3D stage of it; a
 camera search scores thousands of viewpoints with **deterministic composition rules** from the film and photography
 literature (no AI judge); and the best shots come out as structure maps (depth, line art, OpenPose, a mask per
@@ -19,58 +25,15 @@ scored once with the scorer frozen beforehand:
 | | Director's camera in the top 5% |
 |---|---|
 | **FrameSeeker's scorer** | **36 / 59 shots (61%)** |
-| Baseline: rule of thirds alone, same hard constraints, same random cameras | 1 / 59 (2%) |
+| Baseline: Liu et al. 2010's composition score (the published method), same hard constraints, same cameras | 2 / 59 (3%) |
+| Baseline: rule of thirds alone, same hard constraints, same cameras | 1 / 59 (2%) |
 | Chance | 5% |
 
 Details, the tuning episodes, and the caveats are in [Evaluation](#evaluation).
 
-**Contents:** [Gallery](#gallery) · [How it works](#how-it-works) · [Architecture](#architecture) ·
+**Contents:** [How it works](#how-it-works) · [Gallery](#gallery) · [Architecture](#architecture) ·
 [The camera scorer](#the-camera-scorer) · [Evaluation](#evaluation) · [Rendering adapters](#rendering-adapters) ·
 [Run](#run)
-
----
-
-## Gallery
-
-Every scene in [`scenes/`](scenes/), run through phases 3–5 (`npm run gallery -- scenes/*.json`; deterministic, no
-model, no network). For each: the moment, the top three shots as gray-box previews (people in colours, the focus in
-red, a thirds grid), and the first shot's structure maps, which is what a renderer receives: **depth · line art ·
-OpenPose · region masks** (each person, effect, object and part of the set in its own colour).
-
-**Beam clash** — an empty street between glass towers at sunset; a beam from one hand grazes the other's head and
-melts the tower behind (intent: scale).
-![beam clash: top three shots](docs/gallery/beam-clash-shots.png)
-![beam clash: structure maps of the first shot](docs/gallery/beam-clash-maps.png)
-
-**Classroom talk** — after class, one student talks and smiles, the other listens with arms crossed, doubtful
-(intent: emotion).
-![classroom talk: top three shots](docs/gallery/classroom-talk-shots.png)
-![classroom talk: structure maps of the first shot](docs/gallery/classroom-talk-maps.png)
-
-**Lab tanks** — an underground lab at night: a researcher faces a row of glass tanks, her assistant behind her
-(intent: reveal). The tanks are glass: the people behind them stay visible to the camera's checks.
-![lab tanks: top three shots](docs/gallery/lab-tanks-shots.png)
-![lab tanks: structure maps of the first shot](docs/gallery/lab-tanks-maps.png)
-
-**Gantry** — standing on a steel gantry over a city street, a figure points and lightning leaps from the hand
-(intent: scale).
-![gantry: top three shots](docs/gallery/reference-truss-shots.png)
-![gantry: structure maps of the first shot](docs/gallery/reference-truss-maps.png)
-
-**Rooftop strike** — on an office rooftop at night, a punch, and the other side-steps it (intent: action).
-![rooftop strike: top three shots](docs/gallery/rooftop-strike-shots.png)
-![rooftop strike: structure maps of the first shot](docs/gallery/rooftop-strike-maps.png)
-
-**Look back** — a quiet residential street at sunset; someone looks back over the shoulder (intent: emotion).
-![look back: top three shots](docs/gallery/street-lookback-shots.png)
-![look back: structure maps of the first shot](docs/gallery/street-lookback-maps.png)
-
-**Ward** — a dim hospital ward at night: a girl stands by three children asleep in glass life-support capsules
-(intent: emotion).
-![ward: top three shots](docs/gallery/ward-pods-shots.png)
-![ward: structure maps of the first shot](docs/gallery/ward-pods-maps.png)
-
-The scores and cameras of every shot are in [`docs/gallery/gallery.json`](docs/gallery/gallery.json).
 
 ---
 
@@ -108,6 +71,71 @@ flowchart LR
 
 Phases 3–5 are deterministic: the same scene gives the same shots. The project's own work is phases 1–5;
 phase 6 is meant to hand the maps to an existing renderer.
+
+---
+
+## Gallery
+
+Every scene in [`scenes/`](scenes/), run through phases 3–5 (`npm run gallery -- scenes/*.json`; deterministic, no
+model, no network), none left out. For each: the top three shots as gray-box previews (people in colours, the focus
+in red, a thirds grid), and the first shot's structure maps, which is what a renderer receives: **depth, line art /
+OpenPose, region masks** (each person, effect, object and part of the set in its own colour). Click a scene to open
+it. The scores and cameras of every shot are in [`docs/gallery/gallery.json`](docs/gallery/gallery.json).
+
+<details open>
+<summary><b>Classroom talk</b> — after class, one student talks and smiles, the other listens with arms crossed, doubtful (intent: emotion)</summary>
+
+![classroom talk: top three shots](docs/gallery/classroom-talk-shots.png)
+![classroom talk: structure maps of the first shot](docs/gallery/classroom-talk-maps.png)
+</details>
+
+<details>
+<summary><b>Rooftop strike</b> — on an office rooftop at night, a punch, and the other side-steps it (intent: action)</summary>
+
+![rooftop strike: top three shots](docs/gallery/rooftop-strike-shots.png)
+![rooftop strike: structure maps of the first shot](docs/gallery/rooftop-strike-maps.png)
+</details>
+
+<details>
+<summary><b>Beam clash</b> — an empty street between glass towers at sunset; a beam from one hand grazes the other's head and melts the tower behind (intent: scale)</summary>
+
+![beam clash: top three shots](docs/gallery/beam-clash-shots.png)
+![beam clash: structure maps of the first shot](docs/gallery/beam-clash-maps.png)
+
+A scale shot: the person is meant to be small against the street, the beam and the melting tower.
+</details>
+
+<details>
+<summary><b>Gantry</b> — standing on a steel gantry over a city street, a figure points and lightning leaps from the hand (intent: scale)</summary>
+
+![gantry: top three shots](docs/gallery/reference-truss-shots.png)
+![gantry: structure maps of the first shot](docs/gallery/reference-truss-maps.png)
+</details>
+
+<details>
+<summary><b>Look back</b> — a quiet residential street at sunset; someone looks back over the shoulder (intent: emotion)</summary>
+
+![look back: top three shots](docs/gallery/street-lookback-shots.png)
+![look back: structure maps of the first shot](docs/gallery/street-lookback-maps.png)
+</details>
+
+<details>
+<summary><b>Lab tanks</b> — an underground lab at night: a researcher faces a row of glass tanks, her assistant behind her (intent: reveal)</summary>
+
+![lab tanks: top three shots](docs/gallery/lab-tanks-shots.png)
+![lab tanks: structure maps of the first shot](docs/gallery/lab-tanks-maps.png)
+
+The tanks are glass: the people behind them stay visible to the camera's checks.
+</details>
+
+<details>
+<summary><b>Ward</b> — a dim hospital ward at night: a girl stands by three children asleep in glass life-support capsules (intent: emotion)</summary>
+
+![ward: top three shots](docs/gallery/ward-pods-shots.png)
+![ward: structure maps of the first shot](docs/gallery/ward-pods-maps.png)
+
+A known weak spot: from this low a camera the children lying down are visible, but hard to read.
+</details>
 
 ---
 
@@ -215,47 +243,53 @@ percentile among the search's random valid cameras for that scene (top 5% = the 
 whether the search's own top 3 contain a camera near it. A rejected reference camera counts as a miss. The frames
 and annotations are not in the repository (copyrighted footage); the code is in `src/eval/`.
 
+**Baselines.** Each ranks the same random cameras, under the same hard constraints, by one score: Liu et al. 2010's
+whole composition score E (rule of thirds, diagonal dominance, visual balance, region size, with the paper's
+weights; the published method), or its rule-of-thirds term alone. Chance is 5% in the top 5% and a median
+percentile of 50%.
+
 **Tuning and held-out episodes, in order.** The scorer was first built on Hyouka ep 5 (Kyoto Animation) and
 A Certain Scientific Railgun S ep 24 (J.C.Staff). Each held-out episode below was annotated first, then scored
 **once** with the scorer frozen at the named commit, and only then joined the tuning set. After Log Horizon the
 action shot-scale prior was changed (the episode showed action shots are wider); Mahouka and GATE were scored with
 that change already frozen.
 
-| Held-out episode | Studio | Scorer frozen at | FrameSeeker: top 5% | Baseline: top 5% | FrameSeeker: top 3 |
-|---|---|---|---|---|---|
-| Oregairu S1 ep 12 | Brain's Base | `4996aa6` | 8 / 15 | 1 / 15 | 3 / 15 |
-| Log Horizon ep 4 | Satelight | `763dc6c` | 5 / 14 | 0 / 14 | 5 / 14 |
-| Mahouka ep 22 | Madhouse | `0d54cc0` | 12 / 15 | 0 / 15 | 4 / 15 |
-| GATE ep 6 | A-1 Pictures | `0d54cc0` | 11 / 15 | 0 / 15 | 1 / 15 |
-| **Total** | | | **36 / 59 (61%)** | **1 / 59 (2%)** | 13 / 59 |
+| Held-out episode | Studio | Scorer frozen at | FrameSeeker: top 5% | Liu et al.: top 5% | Thirds: top 5% | FrameSeeker: top 3 |
+|---|---|---|---|---|---|---|
+| Oregairu S1 ep 12 | Brain's Base | `4996aa6` | 8 / 15 | 1 / 15 | 1 / 15 | 3 / 15 |
+| Log Horizon ep 4 | Satelight | `763dc6c` | 5 / 14 | 0 / 14 | 0 / 14 | 5 / 14 |
+| Mahouka ep 22 | Madhouse | `0d54cc0` | 12 / 15 | 1 / 15 | 0 / 15 | 4 / 15 |
+| GATE ep 6 | A-1 Pictures | `0d54cc0` | 11 / 15 | 0 / 15 | 0 / 15 | 1 / 15 |
+| **Total** | | | **36 / 59 (61%)** | **2 / 59 (3%)** | **1 / 59 (2%)** | 13 / 59 |
 
-The baseline ranks by the rule of thirds alone (Liu et al.'s RT term) under the same hard constraints, over the
-same random cameras, computed with each frozen commit's own code. Median percentile per episode: 95 / 92 / 99 / 97%
-for FrameSeeker, 76 / 49 / 63 / 47% for the baseline (chance: 50%).
+The baselines were computed with each frozen commit's own code, on the same cameras. Median percentile per episode
+(Oregairu / Log Horizon / Mahouka / GATE): FrameSeeker 95 / 92 / 99 / 97%, Liu et al. 79 / 41 / 49 / 53%, thirds
+76 / 49 / 63 / 47%.
 
 **All six episodes, current scorer — includes the tuning data.**
 
-| On all 88 rebuilt shots (89 annotated, 1 rebuild failure) | FrameSeeker | Baseline (thirds only) |
-|---|---|---|
-| Director's camera in the top 5% | 59 (67%) | 6 (7%) |
-| Median percentile | 98% | 65% |
-| Director's camera among the search's top 3 | 24 | 7 |
+| On all 88 rebuilt shots (89 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
+|---|---|---|---|
+| Director's camera in the top 5% | 59 (67%) | 8 (9%) | 6 (7%) |
+| Median percentile | 98% | 55% | 65% |
+| Director's camera among the search's top 3 | 24 | 6 | 7 |
 
-**Caveats.**
+**What this says, and what it does not.**
+- Neither picture-plane measure, the published one or its simplest rule, separates the director's camera from the
+  others: both sit near chance. That is not a fault of Liu et al.'s method, which scores how a photograph is
+  arranged on its plane; choosing a camera is mostly about what that plane cannot see: how far, how high, from
+  which side, at what tilt. The scorer's other terms (shot scale, face angle, tilt, occlusion, …) carry the signal.
 - The held-out figures belong to the frozen versions. The scorer has changed since the last held-out run, using
   all six episodes (a camera-tilt prior measured on all 88 shots; the mannequin's proportions; room floors; glass),
   so **the current version has no held-out measurement yet**; the next episodes will give it one.
 - 59 held-out shots from four episodes is a small sample, and every episode is anime.
-- The rule of thirds alone does no better than chance at the top 5%: placing a subject on a third is not what
-  separates a director's camera from the others. What does is shot scale, face angle, tilt and the rest of the
-  scorer.
 - "Top 3" is a harsh measure: there is usually more than one good camera, and the search's best is often a
   different, equally valid one (GATE: 11 / 15 in the top 5%, 1 / 15 in the top 3).
 - Known weak spots: backs and wide establishing shots; the shot scale of action scenes; a person lying down can be
   "visible" from a camera that cannot read them.
 
-`npm run eval` reproduces the all-episode numbers (`--objective thirds` for the baseline), given the local
-annotations.
+`npm run eval` reproduces the all-episode numbers (`--objective liu` or `--objective thirds` for the baselines),
+given the local annotations.
 
 ---
 
@@ -269,7 +303,6 @@ archived on branch [`archive/phase6-sdxl-comfy`](../../tree/archive/phase6-sdxl-
 Some of its pictures, each beside the gray-box shot it was drawn from (gray box at the time of the run):
 
 ![beam clash: gray box and render](docs/rendered/beam-clash.jpg)
-![classroom: gray box and render](docs/rendered/classroom-talk-1.jpg)
 ![classroom, low angle: gray box and render](docs/rendered/classroom-talk-2.jpg)
 ![lab tanks: gray box and render](docs/rendered/lab-tanks.jpg)
 
@@ -307,7 +340,7 @@ npm run frameseeker -- stories/rooftop-chase.txt      # phases 1–5 from a stor
 | `npm run stage -- <story.txt>` | 1–3 | inspecting extraction and staging |
 | `npm run shot -- <scene.json>` | 3–5 | inspecting the camera search: previews, maps, every score term |
 | `npm run gallery -- <scene.json ...>` | 3–5 | the gallery above (`docs/gallery/`) |
-| `npm run eval [-- --objective thirds]` | — | the scorer (or the baseline) against the annotated film frames (local data) |
+| `npm run eval [-- --objective liu\|thirds]` | — | the scorer (or a baseline) against the annotated film frames (local data) |
 | `npm run refs:select` | — | sampling reference frames by the fixed rules (local data) |
 
 Each shot comes out as a gray-box preview, depth, line art, OpenPose, a mask per region (each person, effect,

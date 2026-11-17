@@ -1,8 +1,9 @@
-// npm run eval -- [eval/refs/<episode>.annot.json ...] [--only id] [--n 3000] [--previews] [--objective full|thirds]
+// npm run eval -- [eval/refs/<episode>.annot.json ...] [--only id] [--n 3000] [--previews] [--objective full|thirds|liu]
 // Evaluation A over the annotated reference shots: prints a table, a summary over all shots and one per episode, and
-// writes out/eval/report.json (the baseline: report-thirds.json); with --previews, the rebuilt scene seen by each
-// reference camera, to check the rebuild against the frame. --objective thirds ranks by the rule of thirds alone,
-// under the same hard constraints and the same random cameras: the baseline the full scorer is compared with.
+// writes out/eval/report.json (a baseline: report-<objective>.json); with --previews, the rebuilt scene seen by each
+// reference camera, to check the rebuild against the frame. The baselines rank under the same hard constraints and
+// the same random cameras: --objective thirds by the rule of thirds alone, --objective liu by Liu et al. 2010's
+// whole composition score.
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { evalRef, rebuild, type RefFrame, type RefResult } from '../eval/index.ts';
@@ -15,7 +16,7 @@ const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >=
 const flag = (name: string) => { const i = args.indexOf(`--${name}`); if (i >= 0) args.splice(i, 1); return i >= 0; };
 const only = opt('only'), n = Number(opt('n') ?? 3000), previews = flag('previews');
 const objective = (opt('objective') ?? 'full') as Objective;
-if (objective !== 'full' && objective !== 'thirds') { console.error('--objective full|thirds'); process.exit(2); }
+if (!['full', 'thirds', 'liu'].includes(objective)) { console.error('--objective full|thirds|liu'); process.exit(2); }
 const files = args.length ? args : readdirSync('eval/refs').filter((f) => f.endsWith('.annot.json')).map((f) => join('eval/refs', f));
 const refs: RefFrame[] = files.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')) as RefFrame[]).filter((r) => !only || r.id === only);
 mkdirSync('out/eval', { recursive: true });

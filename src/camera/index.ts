@@ -9,7 +9,7 @@
 //  - camera geometry: frame, project, ray, pitch, inFrame, SIZE, FOCALS
 import type { World3D, Rating } from '../scene/index.ts';
 import type { Image } from '../shared/image.ts';
-import { context, evaluate, thirdsOnly, TERMS, type Evaluation } from './score.ts';
+import { context, evaluate, liuOnly, thirdsOnly, TERMS, type Evaluation } from './score.ts';
 import { sampler, search, type SearchOpts, type SearchResult } from './search.ts';
 import { preview as renderPreview } from './render.ts';
 import { depthOf, faceAngleOf, gbuffer, keypoints, lineartOf, openposeOf, regionsOf, type Region } from './maps.ts';
@@ -51,13 +51,14 @@ export interface Scorer {
   search(opts?: SearchOpts): SearchResult;
 }
 /**
- * What a camera is scored by: 'full' (the scorer) or 'thirds' (the evaluation baseline: the same hard constraints,
- * then the rule of thirds alone).
+ * What a camera is scored by: 'full' (the scorer), or an evaluation baseline under the same hard constraints:
+ * 'thirds' (the rule of thirds alone) or 'liu' (Liu et al. 2010's whole composition score).
  */
-export type Objective = 'full' | 'thirds';
+export type Objective = 'full' | 'thirds' | 'liu';
 export function scorer(w: World3D, objective: Objective = 'full'): Scorer {
   const ctx = context(w.solved, w.world);
-  const score = objective === 'thirds' ? (cam: Cam) => thirdsOnly(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
+  const baseline = objective === 'thirds' ? thirdsOnly : objective === 'liu' ? liuOnly : null;
+  const score = baseline ? (cam: Cam) => baseline(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
   return { evaluate: score, random: (rand, aspects) => sampler(ctx, rand, aspects), search: (opts) => search(ctx, opts, score) };
 }
 
