@@ -45,9 +45,19 @@ export function faceScore(angle: number): number {
 export const SHOT_SCALES: [name: string, size: number, freq: number][] = [
   ['XLS', 0.45, 0.08], ['LS', 0.92, 0.14], ['MLS', 1.33, 0.24], ['MS', 2.15, 0.3], ['MCU', 3.8, 0.16], ['CU', 6.7, 0.06], ['XCU', 12, 0.01],
 ];
-export function shotScaleScore(size: number): number {
-  const top = Math.max(...SHOT_SCALES.map((s) => s[2]));
-  const xs = SHOT_SCALES.map((s) => Math.log(s[1])), ys = SHOT_SCALES.map((s) => s[2] / top), x = Math.log(Math.max(1e-3, size));
+/**
+ * Action shots are wider (DESIGN.md §6.6.6–6.6.7): the 12 action reference shots over Cutting's scales, add-one
+ * smoothed: XLS 9+1, LS 1+1, MLS 1+1, MS 1+1, MCU/CU/XCU 0+1 (sizes as SHOT_SCALES; only the frequencies differ).
+ */
+const ACTION_REFS: Record<string, number> = { XLS: 10, LS: 2, MLS: 2, MS: 2, MCU: 1, CU: 1, XCU: 1 };
+/**
+ * 12 shots alone make too sharp a prior (the medium action shots fell, §6.6.7): the mean of the two normalized
+ * distributions — films overall and the action references — so both the wide and the medium action shot score well.
+ */
+export const ACTION_SCALES: [name: string, size: number, freq: number][] = SHOT_SCALES.map(([n, s, f]) => [n, s, f / 0.3 / 2 + ACTION_REFS[n] / 10 / 2]);
+export function shotScaleScore(size: number, table: [string, number, number][] = SHOT_SCALES): number {
+  const top = Math.max(...table.map((s) => s[2]));
+  const xs = table.map((s) => Math.log(s[1])), ys = table.map((s) => s[2] / top), x = Math.log(Math.max(1e-3, size));
   if (x <= xs[0]) return ys[0] * Math.max(0, (x - Math.log(0.015)) / (xs[0] - Math.log(0.015)));
   if (x >= xs[xs.length - 1]) return ys[ys.length - 1];
   const i = xs.findIndex((v) => v > x) - 1;
@@ -222,7 +232,8 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   // a person small against something big (scale); an establishing shot without one: long to extreme long shot
   // (Cutting 2015's definitions: XLS the setting well beyond the figure, LS head to feet); else films' shot scales
   terms.subject_size = far || (ctx.intent === 'scale' && big) ? tri(info.subject_size, ...SCALE_SIZE)
-    : ctx.intent === 'scale' ? tri(info.subject_size, ...WIDE_SIZE) : shotScaleScore(info.subject_size);
+    : ctx.intent === 'scale' ? tri(info.subject_size, ...WIDE_SIZE)
+    : shotScaleScore(info.subject_size, ctx.intent === 'action' ? ACTION_SCALES : SHOT_SCALES);
   // which way the face is seen: the reference shots' frequency over a uniform camera's (a likelihood ratio in three
   // coarse bins, DESIGN.md §6.6.5), so the front is preferred but a back is a choice films make (19% of them)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);

@@ -3,7 +3,7 @@ import { rebuild, REF_H, REF_W, type RefFrame } from '../src/refs.ts';
 import { solve } from '../src/solve.ts';
 import { frame, project, type Cam } from '../src/camera.ts';
 import { KP } from '../src/poses.ts';
-import { faceScore, shotScaleScore } from '../src/score.ts';
+import { ACTION_SCALES, faceScore, shotScaleScore } from '../src/score.ts';
 import type { Scene } from '../src/scene.ts';
 
 describe('reference rebuild (single-view metrology)', () => {
@@ -46,6 +46,14 @@ describe('reference rebuild (single-view metrology)', () => {
     expect(at('LS')).toBeGreaterThan(at('XLS'));
     expect(at('CU')).toBeGreaterThan(at('XCU'));
     expect(shotScaleScore(0.01)).toBe(0);
+  });
+
+  it('RF4 action shots: the extreme long shot about as good as the medium shot; other intents keep the medium shot', () => {
+    const xls = shotScaleScore(0.45, ACTION_SCALES), ms = shotScaleScore(2.15, ACTION_SCALES);
+    expect(Math.max(xls, ms)).toBeCloseTo(1, 6);
+    expect(Math.abs(xls - ms)).toBeLessThan(0.1);
+    expect(shotScaleScore(0.45)).toBeLessThan(0.3);
+    expect(shotScaleScore(2.15)).toBeCloseTo(1, 6);
   });
 
   it('RF3 face angle: the front preferred, three-quarter less, a back still a choice (never zero)', () => {
