@@ -120,7 +120,7 @@ a locomotion pose facing them. Speaking is not pointing: the speaker is the one 
 
 The person more others point at than at anyone else (each counted once) is the one the facts point to. When the focus
 the LLM chose (the moment's focus, or the intent's subject) is a person and the facts point to someone else, the
-solver adds a note. It is a check, not a rule: a reaction shot is about the one who looks, and the focus's own gaze is
+solver adds a note, when at least two people point at that someone (one person's gaze is what they see). It is a check, not a rule: a reaction shot is about the one who looks, and the focus's own gaze is
 left out (what they look at is what they see, not a rival focus). Light that points the eye (a lit face, a pool of
 light) and leading lines are devices of the same kind, for the lighting layer (see *Feel and light*).
 
