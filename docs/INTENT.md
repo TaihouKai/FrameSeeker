@@ -107,7 +107,10 @@ intents, the search's best camera:
   when nobody names the face), but intents written by an LLM from text do not tell when the face matters as the
   annotators judge it, and no weighting beat the current face term out of sample or in evaluation A. The scorer is
   unchanged; when a better source of intent exists, the face term would become p·(face table) + (1 − p), with p
-  measured as P(the face matters | intent).
+  measured as P(the face matters | intent). Asking the LLM instead for the reasons film scholarship gives for a back
+  (Bordwell 1985: shame or grief hidden, absorption, watching something further off, hidden identity, following
+  someone who walks away) looked promising on the 119 shots it was chosen on, and failed on 45 new shots from three
+  new episodes, frozen beforehand: the people it flagged were shown from the front or the side, not from behind.
 - **Extraction** (`extractIntent`) is written and checked against the scene's ids, but not yet run on stories.
 
 ## Pointing: who the eye goes to
