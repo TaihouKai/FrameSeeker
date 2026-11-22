@@ -94,6 +94,8 @@ describe('solver', () => {
     expect(pointedAt(scene('classroom-talk'))).toBeUndefined();
     // what the focus looks at is what they see, not a rival focus (the girl faces a child in a pod)
     expect(checkFocus(scene('ward-pods'))).toEqual([]);
+    // one person's gaze alone does not question the focus
+    expect(checkFocus({ ...s, actors: s.actors.filter((a) => a.id !== 'b' && a.id !== 'c'), effects: [] }, 'a')).toEqual([]);
     // a thing as the focus is not checked (only people count)
     expect(checkFocus(s, 'bolt')).toEqual([]);
   });

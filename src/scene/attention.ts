@@ -11,6 +11,8 @@ export type PointHow = 'looks' | 'faces' | 'aims' | 'effect';
 export interface Pointer { from: string; to: string; how: PointHow }
 
 const owner = (ref: string) => ref.split('.')[0];
+/** how many people must point at someone else before the focus is questioned */
+export const MIN_POINTERS = 2;
 
 /** Every person-to-person pointing fact in the scene. */
 export function pointers(scene: Scene): Pointer[] {
@@ -47,14 +49,15 @@ export function pointedAt(scene: Scene, except?: string): { id: string; by: Poin
 }
 
 /**
- * A note when the focus an LLM chose (the moment's focus, an intent's subject) is a person and the others point at
- * someone else. The focus's own pointing is left out: what they look at is what they see, not a rival. A check, not a
+ * A note when the focus an LLM chose (the moment's focus, an intent's subject) is a person and at least two others
+ * point at someone else. The focus's own pointing is left out: what they look at is what they see, not a rival; and so
+ * is one person's alone (one who looks at a clerk reading a letter does not make the clerk the focus). A check, not a
  * rule: a reaction shot is about the one who looks, and the text may say so.
  */
 export function checkFocus(scene: Scene, focus: string = scene.moment.focus): string[] {
   if (!scene.actors.some((a) => a.id === focus)) return [];
   const p = pointedAt(scene, focus);
-  if (!p || p.id === focus) return [];
+  if (!p || p.id === focus || p.by.length < MIN_POINTERS) return [];
   const how = p.by.map((q) => `${q.from} ${q.how}`).join(', ');
   return [`focus "${focus}", but the others point the eye at "${p.id}" (${how})`];
 }
