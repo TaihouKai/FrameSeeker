@@ -17,7 +17,7 @@ export type { Solved, SolvedActor, SolvedStructure, SolvedLine, SolvedVolume, So
 // the pose library (the names the solver accepts)
 export { POSES, type Pose } from './poses.ts';
 // who points the eye at whom (looks, faces, aims, line effects), and the check of a chosen focus against it
-export { pointers, pointedAt, checkFocus, type Pointer, type PointHow } from './attention.ts';
+export { cues, support, attended, checkFocus, STORY_CUES, CUE_WEIGHT, MIN_SUPPORT, type Cue, type CueKind, type CueSource } from './attention.ts';
 export type { Op } from './llm/stage.ts';
 export type { Chat } from './llm/chat.ts';
 export { veniceChat, openAiChat } from './llm/chat.ts';

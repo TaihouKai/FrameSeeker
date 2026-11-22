@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { solve } from '../src/scene/solve.ts';
 import { POSES } from '../src/scene/poses.ts';
-import { checkFocus, pointedAt, pointers } from '../src/scene/attention.ts';
+import { attended, checkFocus, cues } from '../src/scene/attention.ts';
 import { cross, dot, len, norm, sub } from '../src/shared/vec.ts';
 import type { Scene } from '../src/scene/types.ts';
 
@@ -74,7 +74,7 @@ describe('solver', () => {
     expect(s4.actors.get('dodger')!.gaze).toEqual(s4.actors.get('shooter')!.head);
     expect(s4.actors.get('shooter')!.gaze).toBeUndefined();
   });
-  it('SV-point who points the eye at whom: looks, faces, aims, line effects; the focus is checked against it', () => {
+  it('SV-point story cues: looks, faces, approaches, aims, line effects, speaking; the focus is checked against them', () => {
     const base = scene('classroom-talk');
     const actor = (id: string, extra: object = {}) => ({ ...base.actors[0], id, place: { at: [Number(id.charCodeAt(0) - 97) * 1.5, 0] as [number, number] }, facing: undefined, looks_at: undefined, ...extra });
     const s: Scene = {
@@ -83,20 +83,37 @@ describe('solver', () => {
       effects: [{ id: 'bolt', kind: 'projectile', from: 'e.right_hand', to: 'd.chest', prompt: [] }],
       moment: { ...base.moment, focus: 'a' },
     };
-    expect(pointers(s).map((p) => `${p.from}>${p.to}:${p.how}`)).toEqual(['b>d:looks', 'c>d:faces', 'd>a:looks', 'e>d:aims', 'e>d:effect']);
-    // each person counts once: b, c, e point at d (e twice), d at a
-    expect(pointedAt(s)!.id).toBe('d');
-    expect(pointedAt(s)!.by.map((p) => p.from)).toEqual(['b', 'c', 'e']);
+    expect(cues(s).map((c) => `${c.from}>${c.to}:${c.kind}`)).toEqual(['b>d:looks', 'c>d:faces', 'd>a:looks', 'e>d:aims', 'e>d:effect']);
+    // each source counts once per target: b, c, e point at d (e twice), d at a
+    expect(attended(s)!.id).toBe('d');
+    expect(attended(s)!.by.map((c) => c.from)).toEqual(['b', 'c', 'e']);
     expect(checkFocus(s)).toHaveLength(1);
     expect(solve(s).notes.some((n) => n.includes('point the eye at "d"'))).toBe(true);
     expect(checkFocus(s, 'd')).toEqual([]);
     // two who look at each other: no verdict
-    expect(pointedAt(scene('classroom-talk'))).toBeUndefined();
+    expect(attended(scene('classroom-talk'))).toBeUndefined();
     // what the focus looks at is what they see, not a rival focus (the girl faces a child in a pod)
     expect(checkFocus(scene('ward-pods'))).toEqual([]);
     // one person's gaze alone does not question the focus
-    expect(checkFocus({ ...s, actors: s.actors.filter((a) => a.id !== 'b' && a.id !== 'c'), effects: [] }, 'a')).toEqual([]);
-    // a thing as the focus is not checked (only people count)
+    const two = { ...s, actors: s.actors.filter((x) => x.id !== 'b' && x.id !== 'c'), effects: [] };
+    expect(checkFocus(two, 'a')).toEqual([]);
+    // speaking draws the eye to the speaker: the speaker plus one who walks toward them is enough
+    const talk: Scene = { ...s, actors: [actor('a'), actor('b', { speaking: true, looks_at: 'a' }), actor('c', { pose: 'walk', approaches: 'b' })], effects: [] };
+    expect(cues(talk).map((c) => `${c.from}>${c.to}:${c.kind}`)).toEqual(['b>a:looks', 'c>b:approaches', 'b>b:speaks']);
+    expect(attended(talk, 'a')!.id).toBe('b');
+    expect(checkFocus(talk)).toHaveLength(1);
+    // the focus's own speaking counts for them: a speaks, b and c look at a
+    expect(checkFocus({ ...talk, actors: [actor('a', { speaking: true }), actor('b', { looks_at: 'a' }), actor('c', { looks_at: 'a' })] })).toEqual([]);
+    // approaching someone faces them by default
+    expect(solve(talk).actors.get('c')!.gaze).toEqual(solve(talk).actors.get('b')!.head);
+    // a thing can be pointed at and be the focus: two who look at the desk support it
+    const desk: Scene = { ...talk, actors: [actor('a', { looks_at: 'desk' }), actor('b', { looks_at: 'desk' })], structures: [{ id: 'desk', kind: 'other', size: { height: 0.8, width: 1.2, depth: 0.6 }, place: { at: [1, 3] }, prompt: [] }] };
+    expect(attended(desk)!.id).toBe('desk');
+    expect(checkFocus(desk, 'desk')).toEqual([]);
+    expect(checkFocus(desk, 'a')).toEqual([]);
+    // an unknown approach target is an error
+    expect(() => solve({ ...talk, actors: [actor('a', { approaches: 'nobody' })] })).toThrow();
+    // an effect is not a focus that can be checked
     expect(checkFocus(s, 'bolt')).toEqual([]);
   });
 });

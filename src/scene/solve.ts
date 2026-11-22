@@ -11,7 +11,7 @@ export const FLOOR_H = 3.5;
 export interface SolvedActor {
   id: string; height: number; pos: V3; fwd: V3; pose: string; mirrored: boolean;
   points: V3[]; head: V3; headR: number; prims: Prim[];
-  /** the point they look at (looks_at, else the id they face), when there is one */
+  /** the point they look at (looks_at, else the id they face or approach), when there is one */
   gaze?: V3;
 }
 export interface SolvedStructure {
@@ -119,6 +119,7 @@ export function solve(scene: Scene): Solved {
   };
   for (const a of scene.actors) position(a.id);
   for (const s of scene.structures) structure(s.id);
+  for (const a of scene.actors) if (a.approaches !== undefined) position(a.approaches);
 
   // --- actors: facing, pose, aim ---
   const actors = new Map<string, SolvedActor>();
@@ -158,7 +159,7 @@ export function solve(scene: Scene): Solved {
   const buildActor = (a: Actor, mirrored: boolean): SolvedActor => {
     const h = a.height ?? DEFAULT_HEIGHT;
     const at = pos.get(a.id)!;
-    const faceTarget = typeof a.facing === 'string' ? position(a.facing) : a.aim ? position(a.aim.split('.')[0]) : others(a.id);
+    const faceTarget = typeof a.facing === 'string' ? position(a.facing) : a.approaches ? position(a.approaches) : a.aim ? position(a.aim.split('.')[0]) : others(a.id);
     const fwd = typeof a.facing === 'number' ? yawDir(a.facing * Math.PI / 180) : faceTarget ? flat(sub(faceTarget, at)) : [0, 0, 1] as V3;
     const pose = POSES.get(a.pose)!;
     const local: Local[] = mirrored ? mirror(pose.points) : pose.points;
@@ -279,7 +280,7 @@ export function solve(scene: Scene): Solved {
     return anchor(ref);
   };
   for (const a of scene.actors) {
-    const look = a.looks_at ?? (typeof a.facing === 'string' ? a.facing : undefined);
+    const look = a.looks_at ?? (typeof a.facing === 'string' ? a.facing : a.approaches);
     if (look === undefined) continue;
     actors.get(a.id)!.gaze = typeof look === 'string' ? thing(look) : [look[0], look[1], look[2]];
   }

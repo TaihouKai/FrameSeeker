@@ -115,27 +115,33 @@ intents, the search's best camera:
 
 ## Pointing: who the eye goes to
 
-The viewer looks where the people in the picture look, point, aim or move, and the person they point at is often
-neither the biggest nor the most central in the frame. So the focus is checked against the scene's facts
-(`src/scene/attention.ts`): who looks at whom (`looks_at`, else the id they face), who aims at whom (`aim`: pointing,
-firing, punching), and line effects (a beam, a throw, a slash) from one person to another. Moving toward someone is
-a locomotion pose facing them. Speaking is not pointing: the speaker is the one watched, not whom they speak to.
+Films point the viewer's eye at someone or something in many ways: the people in the picture look, point, aim or walk
+toward it; someone speaks (the eye goes to the speaker); a beam or a throw flies at it; light falls on it; lines lead
+to it. Each such fact is a **cue** (`src/scene/attention.ts`): what it points at (a person or a structure), its kind,
+whose it is, a weight. Cues come from small sources, one per kind, so a new kind is a new source and nothing else.
 
-The person more others point at than at anyone else (each counted once) is the one the facts point to. When the focus
-the LLM chose (the moment's focus, or the intent's subject) is a person and the facts point to someone else, the
-solver adds a note, when at least two people point at that someone (one person's gaze is what they see). It is a check, not a rule: a reaction shot is about the one who looks, and the focus's own gaze is
-left out (what they look at is what they see, not a rival focus). Light that points the eye (a lit face, a pool of
-light) and leading lines are devices of the same kind, for the lighting layer (see *Feel and light*).
+The same cues serve two layers:
 
-Measured on the 30 annotated tasks (four annotators, who read the description and saw a sketch of the frame), with
-who faces whom taken from the reference frames' head directions: people pointed at by 0, 1 and 2+ others got 1.7, 2.0
-and 2.7 of 4 attention votes (within-shot permutation p 0.07); pointing at someone does not draw votes to the one who
-points. The check, given the LLM's subject, fires on 4 of the 23 shots with two or more people: once the annotators
-side with the check, once with the LLM, twice they are split. From the text alone (the
-pipeline's scene extractor on the same 30 descriptions), the extractor writes few pointing facts (a gaze or a facing
-only where the text says so) and keeps its focus consistent with them: the check fires on none of the 27 shots with
-two or more people. So for now it is a safety net (for hand-written scenes and later edits) more than a correction;
-its value grows with scenes that say more about who looks at whom.
+- **Story cues** are facts of the scene, true whatever the camera: `looks_at` (else the id they face), `approaches`
+  (whom they walk toward), `aim` (pointing, firing, punching), line effects, and `speaking` (a cue at the speaker
+  themselves, not at whom they speak to). They tell whom the moment is about, so the focus the LLM chose (the
+  moment's focus, or the intent's subject) is checked against them: the one with the most support (each source counted
+  once per target) is compared with it, and when they differ and at least two sources support the other one, the
+  solver adds a note. The focus's own cues at others are left out (what they look at is what they see, not a rival).
+  It is a check, not a rule: a reaction shot is about the one who looks.
+- **Frame cues** (not built): light, leading lines, size and place in the picture. They depend on the camera and the
+  lighting; they are how a director sends the eye to the focus, so they belong to the camera search and the lighting
+  layer (see *Feel and light*) as preferences, not to choosing the focus.
+
+Every kind weighs 1 for now. Measured on the 30 annotated tasks (four annotators): with who faces whom taken from the
+reference frames' head directions, people pointed at by 0, 1 and 2+ others got 1.7, 2.0 and 2.7 of 4 attention votes
+(within-shot permutation p 0.07). From the text alone (the pipeline's scene extractor, which writes facing, looks_at,
+approaches and speaking for every actor, two runs), the support a person gets tracks the votes closely: 0, 1 and 2+
+sources give about 1.4, 2.4 and 3.1 of 4 votes. The person with the most support is the annotators' plurality on 7 of
+11–12 shots, the extractor's own focus on 12–13 of 18, so the cues are a check on the focus, not a replacement. The
+check fires on 2–4 of 27 shots with two or more people, and has not yet corrected a focus the annotators agree on: once
+it named the speaker where all four chose the one walking away, the other times the annotators were split or chose the
+place.
 
 ## Gaze: status
 
