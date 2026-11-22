@@ -102,7 +102,37 @@ intents, the search's best camera:
     "backlit" and the like are devices scored during the search, not added afterwards.
   So: intent (feel) → camera search (world lights as facts, light devices as preferences) → lighting layer (mood light
   for the chosen camera) → render.
+- **The face's weight against the intent** (does the face angle matter only when the face matters?): measured on the
+  annotated shots and on 119 shots with text-only intents. The direction holds (directors show backs far more often
+  when nobody names the face), but intents written by an LLM from text do not tell when the face matters as the
+  annotators judge it, and no weighting beat the current face term out of sample or in evaluation A. The scorer is
+  unchanged; when a better source of intent exists, the face term would become p·(face table) + (1 − p), with p
+  measured as P(the face matters | intent).
 - **Extraction** (`extractIntent`) is written and checked against the scene's ids, but not yet run on stories.
+
+## Pointing: who the eye goes to
+
+The viewer looks where the people in the picture look, point, aim or move, and the person they point at is often
+neither the biggest nor the most central in the frame. So the focus is checked against the scene's facts
+(`src/scene/attention.ts`): who looks at whom (`looks_at`, else the id they face), who aims at whom (`aim`: pointing,
+firing, punching), and line effects (a beam, a throw, a slash) from one person to another. Moving toward someone is
+a locomotion pose facing them. Speaking is not pointing: the speaker is the one watched, not whom they speak to.
+
+The person more others point at than at anyone else (each counted once) is the one the facts point to. When the focus
+the LLM chose (the moment's focus, or the intent's subject) is a person and the facts point to someone else, the
+solver adds a note. It is a check, not a rule: a reaction shot is about the one who looks, and the focus's own gaze is
+left out (what they look at is what they see, not a rival focus). Light that points the eye (a lit face, a pool of
+light) and leading lines are devices of the same kind, for the lighting layer (see *Feel and light*).
+
+Measured on the 30 annotated tasks (four annotators, who read the description and saw a sketch of the frame), with
+who faces whom taken from the reference frames' head directions: people pointed at by 0, 1 and 2+ others got 1.7, 2.0
+and 2.7 of 4 attention votes (within-shot permutation p 0.07); pointing at someone does not draw votes to the one who
+points. The check, given the LLM's subject, fires on 4 of the 23 shots with two or more people: once the annotators
+side with the check, once with the LLM, twice they are split. From the text alone (the
+pipeline's scene extractor on the same 30 descriptions), the extractor writes few pointing facts (a gaze or a facing
+only where the text says so) and keeps its focus consistent with them: the check fires on none of the 27 shots with
+two or more people. So for now it is a safety net (for hand-written scenes and later edits) more than a correction;
+its value grows with scenes that say more about who looks at whom.
 
 ## Gaze: status
 

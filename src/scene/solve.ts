@@ -3,6 +3,7 @@ import { add, dist, lerp, mul, norm, sub, yawDir, yawTo, type V3 } from '../shar
 import { POSES, mirror, toWorld, type Local } from './poses.ts';
 import { HEAD, KP } from '../shared/skeleton.ts';
 import { cast, type Prim, type World } from '../shared/geom.ts';
+import { checkFocus } from './attention.ts';
 import { isDamage, isLine, isVolume, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './types.ts';
 
 export const FLOOR_H = 3.5;
@@ -284,6 +285,8 @@ export function solve(scene: Scene): Solved {
   }
 
   // --- checks ---
+  // the focus against whom the others point at (a note, not an error)
+  notes.push(...checkFocus(scene));
   for (const a of actors.values()) {
     const feet = lerp(a.points[KP.rAnkle], a.points[KP.lAnkle], 0.5);
     // (a glass one is there to hold someone: a tank, a capsule)

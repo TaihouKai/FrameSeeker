@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { solve } from '../src/scene/solve.ts';
 import { POSES } from '../src/scene/poses.ts';
+import { checkFocus, pointedAt, pointers } from '../src/scene/attention.ts';
 import { cross, dot, len, norm, sub } from '../src/shared/vec.ts';
 import type { Scene } from '../src/scene/types.ts';
 
@@ -72,5 +73,28 @@ describe('solver', () => {
     const s4 = solve(base);
     expect(s4.actors.get('dodger')!.gaze).toEqual(s4.actors.get('shooter')!.head);
     expect(s4.actors.get('shooter')!.gaze).toBeUndefined();
+  });
+  it('SV-point who points the eye at whom: looks, faces, aims, line effects; the focus is checked against it', () => {
+    const base = scene('classroom-talk');
+    const actor = (id: string, extra: object = {}) => ({ ...base.actors[0], id, place: { at: [Number(id.charCodeAt(0) - 97) * 1.5, 0] as [number, number] }, facing: undefined, looks_at: undefined, ...extra });
+    const s: Scene = {
+      ...base,
+      actors: [actor('a'), actor('b', { looks_at: 'd.head' }), actor('c', { facing: 'd' }), actor('d', { looks_at: 'a' }), actor('e', { pose: 'point', aim: 'd.chest' })],
+      effects: [{ id: 'bolt', kind: 'projectile', from: 'e.right_hand', to: 'd.chest', prompt: [] }],
+      moment: { ...base.moment, focus: 'a' },
+    };
+    expect(pointers(s).map((p) => `${p.from}>${p.to}:${p.how}`)).toEqual(['b>d:looks', 'c>d:faces', 'd>a:looks', 'e>d:aims', 'e>d:effect']);
+    // each person counts once: b, c, e point at d (e twice), d at a
+    expect(pointedAt(s)!.id).toBe('d');
+    expect(pointedAt(s)!.by.map((p) => p.from)).toEqual(['b', 'c', 'e']);
+    expect(checkFocus(s)).toHaveLength(1);
+    expect(solve(s).notes.some((n) => n.includes('point the eye at "d"'))).toBe(true);
+    expect(checkFocus(s, 'd')).toEqual([]);
+    // two who look at each other: no verdict
+    expect(pointedAt(scene('classroom-talk'))).toBeUndefined();
+    // what the focus looks at is what they see, not a rival focus (the girl faces a child in a pod)
+    expect(checkFocus(scene('ward-pods'))).toEqual([]);
+    // a thing as the focus is not checked (only people count)
+    expect(checkFocus(s, 'bolt')).toEqual([]);
   });
 });
