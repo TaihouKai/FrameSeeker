@@ -61,8 +61,15 @@ preferences. Lighting or vanishing lines would be new devices, and new measureme
 | `alone(who)` | nobody else in frame, the person small in it | Mascelli: space around a figure |
 | `together(who…)` — they belong together now | all in one frame at sizes alike | Arijon: the two-shot |
 | `scale(who, against)` — small against something big | the big thing in frame, many times the person's size | (FrameSeeker's scale shot) |
+| `detail(who, part)` — a part of them: the injured foot, the hand holding the letter, the eyes | an insert: the part fills a good share of the frame (its extent 0.25–0.65 of the frame's height, a first choice); the shot is judged on the part, not the person | Katz: the insert; Mascelli: the cut-in |
 
 Each shot has a `subject` (where the eye goes first) and up to three things to convey, most important first.
+
+An insert changes what the scorer judges, not only what it prefers: the moment gets a `part`, and the hard rule that
+the focus's head is in frame and seen becomes the same rule for the part; the camera is sampled near the part; the
+part's size on the screen replaces the shot scale; and what only means something for a whole person (the face's
+angle, lead room, a thin thing growing out of the head) is left out. The mannequins have hands and feet for it (the
+body-18 skeleton ends at the wrists and ankles). Parts: eyes, chest, either hand or both, either foot or both.
 
 ### What the old `moment` becomes
 

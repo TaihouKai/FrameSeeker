@@ -5,13 +5,14 @@
 import { add, lerp, mul, sub, type V3 } from '../shared/vec.ts';
 import { clear } from '../shared/geom.ts';
 import { KP } from '../shared/skeleton.ts';
-import type { World3D } from '../scene/index.ts';
+import { partPoints, type World3D } from '../scene/index.ts';
 import { frame, inFrame, pitch, project, type Cam } from './camera.ts';
 import { faceAngleOf } from './maps.ts';
 
 export interface ThingView {
   id: string;
-  kind: 'actor' | 'structure' | 'line' | 'volume' | 'damage';
+  /** 'part': the moment's part of its focus, in an insert (id "<actor>.<part>") */
+  kind: 'actor' | 'structure' | 'line' | 'volume' | 'damage' | 'part';
   /** share of its sample points inside the frame */
   inFrame: number;
   /** share of its sample points inside the frame and not hidden by something else */
@@ -63,6 +64,8 @@ export function samples(w: World3D): { id: string; kind: ThingView['kind']; owne
     }
     return pts;
   };
+  const m = s.scene.moment, focus = s.actors.get(m.focus);
+  if (m.part && focus) out.push({ id: `${focus.id}.${m.part}`, kind: 'part', owners: new Set([focus.id]), points: partPoints(focus, m.part) });
   for (const st of s.structures.values()) out.push({ id: st.id, kind: 'structure', owners: new Set([st.id]), points: box(st.box) });
   for (const l of s.lines.values()) out.push({ id: l.id, kind: 'line', owners: new Set(l.hits ? [l.hits] : []), points: [0, 0.25, 0.5, 0.75, 1].map((t) => lerp(l.a, l.b, t)) });
   for (const v of s.volumes.values()) out.push({ id: v.id, kind: 'volume', owners: new Set(), points: [v.c, ...[[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]].map((o) => add(v.c, mul(o as V3, v.r * 0.8)))] });
@@ -80,7 +83,8 @@ export function measure(w: World3D, cam: Cam, pts = samples(w)): View {
     const tv: ThingView = {
       id: t.id, kind: t.kind, inFrame: inside.length / proj.length, seen: seen / proj.length,
       centre: inside.length ? [inside.reduce((a, x) => a + x.s!.u, 0) / inside.length, vs.reduce((a, v) => a + v, 0) / inside.length] : null,
-      size: vs.length ? Math.max(...vs) - Math.min(...vs) : 0,
+      // a part's size is its larger side (a foot lies flat), as the insert's score measures it
+      size: !vs.length ? 0 : t.kind === 'part' ? Math.max(Math.max(...vs) - Math.min(...vs), (Math.max(...inside.map((x) => x.s!.u)) - Math.min(...inside.map((x) => x.s!.u))) / f.ar) : Math.max(...vs) - Math.min(...vs),
     };
     things.set(t.id, tv);
     if (t.kind === 'actor') {

@@ -1,5 +1,6 @@
 // The intent of a shot: what it must make the viewer understand, separate from how the frame is composed. A small
 // structured vocabulary, so that an LLM can write it from a story and code can act on it deterministically.
+import type { BodyPart } from '../scene/index.ts';
 
 /** One thing the viewer must understand from the shot. */
 export type Convey =
@@ -16,7 +17,9 @@ export type Convey =
   /** these belong together in this moment: a relation, a confrontation */
   | { what: 'together'; who: string[] }
   /** how small they are against something big */
-  | { what: 'scale'; who: string; against: string };
+  | { what: 'scale'; who: string; against: string }
+  /** a part of them (an insert: the injured foot, the hand holding the letter, the eyes); the shot is about the part */
+  | { what: 'detail'; who: string; part: BodyPart };
 
 export type ConveyKind = Convey['what'];
 

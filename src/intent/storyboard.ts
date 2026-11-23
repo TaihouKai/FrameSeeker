@@ -4,7 +4,7 @@
 // on the other) belong to different panels, as a director would cut between them. Everything is checked against the
 // scene's ids and solved; what is unknown is dropped with a note, what cannot be solved goes back to the model once.
 // The camera never sees the LLM: it gets each panel's devices as preferences (devices.ts).
-import { atBeat, layoutOf, realize, vocabulary, type Beat, type Chat, type ChatMsg, type Scene } from '../scene/index.ts';
+import { atBeat, BODY_PARTS, layoutOf, realize, vocabulary, type Beat, type Chat, type ChatMsg, type Scene } from '../scene/index.ts';
 import type { Convey, ShotIntent } from './types.ts';
 
 /** At most this many things to convey in one panel. */
@@ -16,7 +16,8 @@ const CONVEY = `{"what":"face","who":id} the viewer must read their face (a reac
 {"what":"vulnerable","who":id} they are small, weak, overwhelmed
 {"what":"alone","who":id} they are alone
 {"what":"together","who":[id,id]} these belong together in this moment (a relation, a confrontation)
-{"what":"scale","who":id,"against":id} how small they are against something big`;
+{"what":"scale","who":id,"against":id} how small they are against something big
+{"what":"detail","who":id,"part":"${BODY_PARTS.join('|')}"} an insert: the viewer must see this part of them up close (an injured foot, a hand holding something, the eyes); the panel shows the part, not the whole person`;
 
 export const STORYBOARD_PROMPT = (n: number) => `You are a film director making a storyboard. The story below is drawn as ${n} panel${n > 1 ? 's' : ''}${n > 1 ? ', like a comic strip: each panel one instant, in story order, all on the same set (the SCENE: its place and structures stay where they are; people come, go and move)' : ''}. For each panel say ${n > 1 ? 'what happens, where everyone present is at that instant, and ' : ''}what the panel must make the viewer understand: not how to frame it, only what must come across. Answer with one JSON object and nothing else:
 {"panels":[{${n > 1 ? '"what":"<the story\'s words for this instant>","actors":[{"id":"","pose":"","place":{...},"facing":null,"looks_at":null,"approaches":null,"speaking":false,"aim":null,"expression":[]}],"effects":[],' : ''}"intent":{"subject":"<id>","why":"<one sentence>","convey":[ ...most important first, at most ${MAX_CONVEY}... ]}}]}
@@ -29,6 +30,8 @@ ${n > 1 ? `
 `}
 - intent.subject: the id the eye goes to first (a person present in the panel). convey items, each one of:
 ${CONVEY}
+- When the text dwells on a part of someone (an injury, what a hand holds or does, a look in the eyes), films usually give it an insert: a "detail" panel.
+- A "detail" is a panel of its own (with nothing else to convey but "sees"): the panels around it show who it is and what happens.
 - A panel's convey items must be things ONE camera can show together. A low angle on one person and a high angle on another, or two faces turned away from each other, are two panels, not one. One strong thing is better than three weak ones.
 
 "layout" says where everything stands in the scene (metres; x across, z along; y up).
@@ -57,7 +60,8 @@ export function checkIntent(raw: unknown, scene: Scene): { intent: ShotIntent; n
     const ok = KINDS.has(String(x.what)) && (Array.isArray(who) ? who.every((w) => ids.has(String(w))) : actors.has(String(who)))
       && (x.what !== 'sees' || x.target === 'gaze' || ids.has(String(x.target)))
       && (x.what !== 'scale' || ids.has(String(x.against)))
-      && (x.what !== 'power' || x.over === undefined || x.over === null || ids.has(String(x.over)));
+      && (x.what !== 'power' || x.over === undefined || x.over === null || ids.has(String(x.over)))
+      && (x.what !== 'detail' || (BODY_PARTS as readonly string[]).includes(String(x.part)));
     if (!ok) { notes.push(`dropped ${JSON.stringify(c)}: unknown kind or id`); continue; }
     if (convey.length === MAX_CONVEY) { notes.push(`dropped ${JSON.stringify(c)}: more than ${MAX_CONVEY} things for one panel`); continue; }
     if (x.what === 'power' && (x.over === null || x.over === undefined)) delete x.over;
@@ -65,7 +69,7 @@ export function checkIntent(raw: unknown, scene: Scene): { intent: ShotIntent; n
   }
   return { intent: { subject, convey, ...(typeof r.why === 'string' ? { why: r.why } : {}) }, notes };
 }
-const KINDS = new Set(['face', 'sees', 'power', 'vulnerable', 'alone', 'together', 'scale']);
+const KINDS = new Set(['face', 'sees', 'power', 'vulnerable', 'alone', 'together', 'scale', 'detail']);
 
 /** The story as n panels on the scene's set (n = 1: the scene's own instant and its intent). */
 export async function storyboard(text: string, scene: Scene, chat: Chat, n = 1): Promise<{ panels: Panel[]; notes: string[] }> {

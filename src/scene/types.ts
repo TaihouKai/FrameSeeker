@@ -1,4 +1,5 @@
 // The scene JSON: relations and rough numbers only; the solver (solve.ts) computes exact geometry.
+import type { BodyPart } from './parts.ts';
 
 export const PLACE_KINDS = ['street', 'plaza', 'bridge', 'rooftop', 'room', 'classroom', 'corridor', 'field', 'forest', 'shore', 'other'] as const;
 export type PlaceKind = typeof PLACE_KINDS[number];
@@ -102,6 +103,11 @@ export type Effect =
 export interface Moment {
   /** what the eye goes to first (an actor id) */
   focus: string;
+  /**
+   * an insert (a detail shot): the eye goes to this part of the focus, not to the whole person (the injured foot, the
+   * hand that holds the letter); the shot is judged on the part
+   */
+  part?: BodyPart;
   /** the effect that runs through the picture */
   action_line?: string;
   /** what the action does (an effect or structure id) */

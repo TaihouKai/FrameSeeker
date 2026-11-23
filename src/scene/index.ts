@@ -8,6 +8,7 @@ import { extract } from './llm/extract.ts';
 import { applyPlan, propose, RULE_HINTS, type Op } from './llm/stage.ts';
 export { layoutOf } from './llm/stage.ts';
 export { atBeat, pinned } from './beat.ts';
+export { BODY_PARTS, partPoints, type BodyPart, type Body } from './parts.ts';
 import { judge, MARGIN } from './judge.ts';
 import type { Chat } from './llm/chat.ts';
 import type { World } from '../shared/geom.ts';

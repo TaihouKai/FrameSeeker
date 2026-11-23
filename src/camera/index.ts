@@ -22,7 +22,7 @@ export type { Cam, Aspect, Frame, Projected } from './camera.ts';
 export type { SearchOpts, SearchResult, Candidate } from './search.ts';
 export type { Evaluation, Term } from './score.ts';
 export { SIZE, FOCALS, frame, project, ray, pitch, inFrame } from './camera.ts';
-export { TERMS } from './score.ts';
+export { TERMS, INSERT_SIZE } from './score.ts';
 export { measure, type View, type ThingView, type ActorView, type Preference } from './view.ts';
 
 export interface Shot {

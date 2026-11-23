@@ -29,11 +29,13 @@ export function needs(intent: ShotIntent): string[] {
  */
 export function applyIntent(scene: Scene, intent: ShotIntent): Scene {
   const m = scene.moment, need = needs(intent);
-  const focus = scene.actors.some((a) => a.id === intent.subject) ? intent.subject : m.focus;
+  // a detail makes the shot an insert of that part: its person is the focus
+  const detail = intent.convey.find((c) => c.what === 'detail');
+  const focus = detail && scene.actors.some((a) => a.id === detail.who) ? detail.who : scene.actors.some((a) => a.id === intent.subject) ? intent.subject : m.focus;
   return {
     ...scene,
     moment: {
-      ...m, focus,
+      ...m, focus, part: detail && detail.who === focus ? detail.part : undefined,
       must_show: need.filter((id) => id !== focus),
       action_line: m.action_line && need.includes(m.action_line) ? m.action_line : undefined,
       payoff: m.payoff && need.includes(m.payoff) ? m.payoff : undefined,

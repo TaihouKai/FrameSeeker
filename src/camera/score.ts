@@ -4,7 +4,7 @@ import { add, dist, lerp, mul, sub, type V3 } from '../shared/vec.ts';
 import { cast, clear, corners, inside, type Prim, type World } from '../shared/geom.ts';
 import { frame, inFrame, pitch, project, ray, screenSegment, SIZE, type Aspect, type Cam, type Frame } from './camera.ts';
 import { KP } from '../shared/skeleton.ts';
-import type { Intent, Solved, SolvedActor } from '../scene/index.ts';
+import { partPoints, type BodyPart, type Intent, type Solved, type SolvedActor } from '../scene/index.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
 export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'overlap', 'aspect', 'merger'] as const;
@@ -83,9 +83,18 @@ export function shotScaleScore(size: number, table: [string, number, number][] =
   return ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i]);
 }
 
+/**
+ * An insert (Katz, Film Directing Shot by Shot: the insert, a close-up of a detail; Mascelli: the cut-in): the part
+ * fills a good share of the frame ([zero, full, full, zero], the part's screen extent over the frame's height). A first
+ * choice, not measured: no reference set of inserts yet.
+ */
+export const INSERT_SIZE: [number, number, number, number] = [0.08, 0.25, 0.65, 1.0];
+
 export interface Ctx {
   solved: Solved; world: World; intent: Intent;
   focus: SolvedActor; focusPoints: V3[];
+  /** an insert: the part of the focus the shot is about (focusPoints are then the part's) */
+  part: BodyPart | null;
   line: { a: V3; b: V3 } | null;
   payoff: { points: V3[]; owners: Set<string>; height: number } | null;
   must: { id: string; points: V3[] }[];
@@ -98,7 +107,8 @@ export function context(solved: Solved, world: World): Ctx {
   const focus = solved.actors.get(m.focus);
   if (!focus) throw new Error(`moment.focus "${m.focus}" is not an actor`);
   const p = focus.points;
-  const focusPoints = m.intent === 'emotion'
+  const part = m.part ?? null;
+  const focusPoints = part ? partPoints(focus, part) : m.intent === 'emotion'
     ? [focus.head, p[KP.nose], p[KP.rEye], p[KP.lEye], p[KP.neck]]
     : [focus.head, p[KP.neck], p[KP.rShoulder], p[KP.lShoulder], p[KP.rHip], p[KP.lHip], p[KP.nose]];
   const lineEff = m.action_line ? solved.lines.get(m.action_line) : undefined;
@@ -120,7 +130,7 @@ export function context(solved: Solved, world: World): Ctx {
   const mustIds = (m.must_show ?? [m.focus, m.action_line, m.payoff].filter(Boolean) as string[]).filter((id) => id !== m.focus && !(m.may_hide || []).includes(id));
   const must = mustIds.map((id) => ({ id, points: pointsOf(id).points }));
   const thin = world.prims.filter((x) => x.thin || (x.kind === 'capsule' && x.r < 0.3 && x.role !== 'actor'));
-  return { solved, world, intent: m.intent, focus, focusPoints, line: lineEff ? { a: lineEff.a, b: lineEff.b } : null, payoff, must, thin };
+  return { solved, world, intent: m.intent, focus, focusPoints, part, line: lineEff ? { a: lineEff.a, b: lineEff.b } : null, payoff, must, thin };
 }
 
 function boxSamples(b: { c: V3; half: V3; yaw: number }): V3[] {
@@ -182,7 +192,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const fp = ctx.focusPoints.map((p) => ({ p, s: project(f, p) }));
   const seen = fp.filter((x) => inFrame(x.s) && clear(w, cam.pos, x.p, focusSkip)).length / fp.length;
   info.focus_visible = seen;
-  if (seen < 0.7) return reject('focus not visible');
+  if (seen < 0.7) return reject(ctx.part ? 'part not visible' : 'focus not visible');
 
   // H2 the payoff is in frame and mostly seen
   if (ctx.payoff) {
@@ -219,8 +229,10 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   }
 
   const terms: Partial<Record<Term, number>> = {};
-  const head = project(f, ctx.focus.head)!;
-  const focusDist = dist(cam.pos, ctx.focus.head);
+  // an insert is about the part: where the person's head would be, the part's centre is
+  const centre = ctx.part ? mul(ctx.focusPoints.reduce((a, b) => add(a, b), [0, 0, 0] as V3), 1 / ctx.focusPoints.length) : ctx.focus.head;
+  const head = project(f, centre)!;
+  const focusDist = dist(cam.pos, centre);
   info.camera_height = cam.pos[1] - w.groundY; info.pitch = pitch(f) * 180 / Math.PI; info.focal = cam.focal;
 
   // a line running at or away from the lens collapses (foreshortening): it no longer reads as a line
@@ -260,6 +272,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   if (big) terms.sky = tri(info.sky, 0.08, 0.25, 0.6, 0.85);
   // near things at the edges frame the shot (Mateu-Mestre, Framed Ink: framing devices); nothing near in the middle
   terms.framing = tri(info.edge_near, 0.03, 0.15, 0.6, 0.9) * (info.middle_blocked > 0.2 ? 0.4 : 1);
+  if (ctx.part) return insert();
   // how big the focus person is, for what the shot is for (shot size: Mascelli, Katz)
   const top = project(f, add(ctx.focus.head, [0, ctx.focus.headR, 0])), feet = project(f, lerp(ctx.focus.points[KP.rAnkle], ctx.focus.points[KP.lAnkle], 0.5));
   info.subject_size = top && feet ? Math.abs(feet.v - top.v) : 0;
@@ -332,12 +345,39 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
     if (segPointDist(s.a, s.b, [head.u, head.v], H / W) < 0.02) merge++;
   }
   terms.merger = merge ? 0 : 1;
+  return total();
+
+  /**
+   * An insert: judged on the part. Its size on the screen takes the place of the shot scale; what only means something
+   * for a whole person (the face's angle, lead room, cutting at joints, a thin thing growing out of the head) is left
+   * out; what covers it is measured on the part.
+   */
+  function insert(): Evaluation {
+    const ps = ctx.focusPoints.map((p) => project(f, p)).filter(Boolean) as { u: number; v: number }[];
+    const b = bbox(ps)!;
+    // the part's extent on the screen (its larger side, in frame heights), at least its nearest dimension's worth
+    info.part_size = Math.max(b.v1 - b.v0, (b.u1 - b.u0) / (H / W));
+    if (info.part_size < 0.03) return reject('part too small');
+    terms.subject_size = tri(info.part_size, ...INSERT_SIZE);
+    terms.tilt = tiltScore(info.pitch);
+    let worst = 0;
+    for (const a of ctx.solved.actors.values()) {
+      if (a.id === ctx.focus.id || dist(cam.pos, a.head) >= focusDist) continue;
+      const ob = bbox(a.points.map((p) => project(f, p)).filter(Boolean) as { u: number; v: number }[]);
+      if (ob) worst = Math.max(worst, coverRatio(b, ob));
+    }
+    terms.overlap = worst <= 0.3 ? 1 : Math.max(0, 1 - (worst - 0.3) / 0.7);
+    terms.aspect = 0.7;
+    return total();
+  }
 
   // weighted geometric mean: one rule broken badly pulls the whole shot down (an average let five easy terms hide it)
-  const weights = WEIGHTS[ctx.intent];
-  let sum = 0, wsum = 0;
-  for (const t of TERMS) if (terms[t] !== undefined && weights[t] > 0) { sum += weights[t] * Math.log(Math.max(0.02, terms[t]!)); wsum += weights[t]; }
-  return { ok: true, total: wsum ? Math.exp(sum / wsum) : 0, terms, info };
+  function total(): Evaluation {
+    const weights = WEIGHTS[ctx.intent];
+    let sum = 0, wsum = 0;
+    for (const t of TERMS) if (terms[t] !== undefined && weights[t] > 0) { sum += weights[t] * Math.log(Math.max(0.02, terms[t]!)); wsum += weights[t]; }
+    return { ok: true, total: wsum ? Math.exp(sum / wsum) : 0, terms, info };
+  }
 }
 
 /** The salient regions and prominent lines of the shot, from the scene itself (saliencies are fixed constants). */
@@ -352,7 +392,10 @@ function regionsAndLines(ctx: Ctx, f: Frame): [Region2D[], Line2D[]] {
     if (u1 <= u0 || v1 <= v0) return;
     regions.push({ c: [(u0 + u1) / 2, (v0 + v1) / 2], area: (u1 - u0) * (v1 - v0), saliency });
   };
-  for (const a of ctx.solved.actors.values()) box([...a.points, add(a.head, [0, a.headR, 0])], a.id === ctx.focus.id ? SALIENCY.focus : SALIENCY.actor);
+  for (const a of ctx.solved.actors.values()) {
+    if (a.id === ctx.focus.id && ctx.part) box(ctx.focusPoints, SALIENCY.focus);
+    else box([...a.points, add(a.head, [0, a.headR, 0])], a.id === ctx.focus.id ? SALIENCY.focus : SALIENCY.actor);
+  }
   if (ctx.payoff) box(ctx.payoff.points, SALIENCY.payoff);
   const lines: Line2D[] = [];
   const seg = (a: V3, b: V3, saliency: number) => { const s = screenSegment(f, a, b); if (s && Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) > 0.05) lines.push({ a: s.a, b: s.b, saliency }); };

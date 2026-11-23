@@ -4,6 +4,7 @@ import { POSES, mirror, toWorld, type Local } from './poses.ts';
 import { HEAD, KP } from '../shared/skeleton.ts';
 import { cast, type Prim, type World } from '../shared/geom.ts';
 import { checkFocus } from './attention.ts';
+import { BODY_PARTS, foot, hand } from './parts.ts';
 import { isDamage, isLine, isVolume, roomOf, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './types.ts';
 
 export const FLOOR_H = 3.5;
@@ -46,6 +47,7 @@ export function solve(scene: Scene): Solved {
     const n = [actorsById.has(id), structById.has(id), effectById.has(id)].filter(Boolean).length;
     if (n > 1) throw new Error(`id "${id}" is used more than once`);
   }
+  if (scene.moment.part && !(BODY_PARTS as readonly string[]).includes(scene.moment.part)) throw new Error(`moment.part "${scene.moment.part}" is not one of ${BODY_PARTS.join(', ')}`);
   for (const a of scene.actors) if (!POSES.has(a.pose)) throw new Error(`actor "${a.id}": no pose "${a.pose}" in the pose library (${[...POSES.keys()].join(', ')})`);
 
   // --- positions (topological, by the placement references) ---
@@ -361,6 +363,11 @@ function bodyPrims(a: SolvedActor): Prim[] {
     cap(p[KP.lShoulder], p[KP.lElbow], 0.035), cap(p[KP.lElbow], p[KP.lWrist], 0.03),
     cap(p[KP.rHip], p[KP.rKnee], 0.05), cap(p[KP.rKnee], p[KP.rAnkle], 0.04),
     cap(p[KP.lHip], p[KP.lKnee], 0.05), cap(p[KP.lKnee], p[KP.lAnkle], 0.04),
+    // hands and feet, so an insert of one has something to show (the skeleton ends at the wrists and ankles)
+    ...(['right', 'left'] as const).flatMap((side) => {
+      const hd = hand(a, side), ft = foot(a, side);
+      return [cap(hd[0], hd[2], 0.022), cap(ft[0], ft[2], 0.022)];
+    }),
   ];
 }
 

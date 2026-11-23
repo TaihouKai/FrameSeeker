@@ -13,15 +13,17 @@ export interface SearchOpts { n?: number; seed?: number; k?: number; refine?: nu
 export function sampler(ctx: Ctx, rand: () => number, aspects: Aspect[] = ['portrait', 'landscape']): () => Cam {
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
   const g = ctx.world.groundY;
-  const focus = ctx.focus.head;
+  // an insert is about a part of the focus: the camera comes near it (Katz: the insert)
+  const focus = ctx.part ? mul(ctx.focusPoints.reduce((a, b) => add(a, b), [0, 0, 0] as V3), 1 / ctx.focusPoints.length) : ctx.focus.head;
+  const [rMin, rMax] = ctx.part ? [0.35, 6] : [1.5, 150];
   const keys: V3[] = [focus];
   if (ctx.line) keys.push(lerp(ctx.line.a, ctx.line.b, 0.5));
   if (ctx.payoff) keys.push(mul(ctx.payoff.points.reduce((a, b) => add(a, b), [0, 0, 0] as V3), 1 / ctx.payoff.points.length));
   const lowBias = ctx.intent === 'scale' ? 0.7 : 0.5;
   return () => {
-    const r = Math.exp(Math.log(1.5) + rand() * (Math.log(150) - Math.log(1.5)));
+    const r = Math.exp(Math.log(rMin) + rand() * (Math.log(rMax) - Math.log(rMin)));
     const az = rand() * Math.PI * 2;
-    const h = rand() < lowBias ? 0.3 + rand() * 1.7 : 0.3 + rand() * rand() * 45;
+    const h = ctx.part ? Math.max(0.25, focus[1] - g + (rand() - 0.5) * 2 * r) : rand() < lowBias ? 0.3 + rand() * 1.7 : 0.3 + rand() * rand() * 45;
     const pos: V3 = [focus[0] + r * Math.sin(az), g + h, focus[2] + r * Math.cos(az)];
     const ws = keys.map(() => rand() + 0.05);
     const wsum = ws.reduce((a, b) => a + b, 0);

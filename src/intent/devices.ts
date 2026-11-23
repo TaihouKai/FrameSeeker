@@ -6,7 +6,7 @@
 // weakness), the close-up for reaction, point-of-view and over-the-shoulder shots; Arijon, Grammar of the Film
 // Language (1976): the two-shot, the external reverse; Jhala & Young 2005 (low angle for dominance, close shot for
 // an angry speaker); Cutting 2015 for shot scales (MS ≈ 2.1, LS ≈ 0.9 of the person's height over the frame's).
-import type { ActorView, Preference, ThingView, View } from '../camera/index.ts';
+import { INSERT_SIZE, type ActorView, type Preference, type ThingView, type View } from '../camera/index.ts';
 import type { Convey, ConveyKind, ShotIntent } from './types.ts';
 
 /** linear from 0 at a to 1 at b (either direction) */
@@ -63,6 +63,10 @@ function devicesFor(c: Convey): Device[] {
         return Math.min(...as.map((a) => isSeen(a!))) * ramp(Math.max(...sizes) / Math.min(...sizes), 3, 1.5);
       },
     }];
+    case 'detail': return [{
+      name: 'insert: the part fills a good share of the frame', source: 'Katz, Film Directing Shot by Shot: the insert; Mascelli: the cut-in',
+      score: (v) => { const t = thing(v, `${c.who}.${c.part}`); if (!t) return 0; const [a, b, , d] = INSERT_SIZE; return seen(t) * Math.min(ramp(t.size, a, b), ramp(t.size, 1.4 * d, d)); },
+    }];
     case 'scale': return [{
       name: 'what is big in frame, the person a fraction of it', source: 'Mascelli: size relations; FrameSeeker scale shot',
       score: (v) => { const a = actor(v, c.who), t = thing(v, c.against); return a && t ? head(a) * ramp(t.inFrame, 0.3, 0.7) * ramp(t.size / Math.max(1e-3, Math.min(1, a.scale)), 1.5, 4) : 0; },
@@ -79,6 +83,7 @@ export const DEVICES: Record<ConveyKind, string[]> = {
   alone: devicesFor({ what: 'alone', who: '' }).map((d) => d.name),
   together: devicesFor({ what: 'together', who: [] }).map((d) => d.name),
   scale: devicesFor({ what: 'scale', who: '', against: '' }).map((d) => d.name),
+  detail: devicesFor({ what: 'detail', who: '', part: 'feet' }).map((d) => d.name),
 };
 
 /**
@@ -92,7 +97,7 @@ export interface IntentWeights {
   first: number;
 }
 export const DEFAULT_WEIGHTS: IntentWeights = {
-  kinds: { face: 1, sees: 1, power: 1, vulnerable: 1, alone: 1, together: 1, scale: 1 },
+  kinds: { face: 1, sees: 1, power: 1, vulnerable: 1, alone: 1, together: 1, scale: 1, detail: 1 },
   first: 1.5,
 };
 
@@ -111,6 +116,7 @@ export function label(c: Convey): string {
     case 'power': return c.over ? `${c.who} over ${c.over}` : `${c.who} holds power`;
     case 'together': return `${c.who.join(' + ')} together`;
     case 'scale': return `${c.who} against ${c.against}`;
+    case 'detail': return `${c.who}'s ${c.part}`;
     default: return `${c.what}: ${c.who}`;
   }
 }
