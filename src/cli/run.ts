@@ -1,5 +1,6 @@
-// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--generator <name>] [--out dir]
-// The whole pipeline. A .txt goes through all six phases (phases 1–2 call the LLM: Venice, the local test key);
+// npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]
+// The whole pipeline. A .txt goes through all six phases (phases 1–2 call the LLM: Venice, the local test key), and the
+// LLM also writes the shot's intent from the same text unless --intent gives one or --no-intent skips it;
 // a .json scene starts at phase 3. Writes per shot: preview, depth, lineart, pose, a mask per region, the colour hint (effects); and report.json.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
@@ -11,11 +12,12 @@ import type { ShotIntent } from '../intent/index.ts';
 import { loadConfig } from './config.ts';
 
 const args = process.argv.slice(2);
+const noIntent = args.includes('--no-intent'); if (noIntent) args.splice(args.indexOf('--no-intent'), 1);
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const focus = opt('focus'), peopleFile = opt('people'), k = Number(opt('k') ?? 3), genName = opt('generator'), outOpt = opt('out'), intentFile = opt('intent');
 const intent = intentFile ? JSON.parse(readFileSync(intentFile, 'utf8')) as ShotIntent : undefined, intentWeights = loadConfig().intent;
 const file = args[0];
-if (!file) { console.error('usage: npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--generator <name>] [--out dir]'); process.exit(2); }
+if (!file) { console.error('usage: npm run frameseeker -- <story.txt | scene.json> [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]'); process.exit(2); }
 const generator = genName ? GENERATORS[genName] : undefined;
 if (genName && !generator) { console.error(`unknown generator "${genName}" (available: ${Object.keys(GENERATORS).join(', ') || 'none: phase 6 is archived, see src/generate/index.ts'})`); process.exit(2); }
 
@@ -25,7 +27,7 @@ const t0 = Date.now();
 const isText = extname(file) === '.txt';
 const chat = isText ? veniceChat() : null;
 const r = isText
-  ? await runText(readFileSync(file, 'utf8'), { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator, intent, intentWeights })
+  ? await runText(readFileSync(file, 'utf8'), { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator, intent, intentWeights, withIntent: !noIntent })
   : await runScene(JSON.parse(readFileSync(file, 'utf8')) as Scene, { k, generator, intent, intentWeights });
 
 if (r.built) writeFileSync(join(out, 'scene.json'), JSON.stringify(r.built.winner.scene, null, 1));
@@ -42,6 +44,7 @@ r.shots.forEach((s, i) => {
 const report = {
   input: file, seconds: (Date.now() - t0) / 1000, usd: chat ? (chat as unknown as { spent: () => number }).spent() : 0,
   staging: r.built ? { winner: r.built.winner.name, plans: r.built.stagings.map((s) => ({ name: s.name, total: +s.rating.total.toFixed(3), accepted: s.accepted.length, dropped: s.dropped.length, refused: s.refused.length })) } : null,
+  intent: r.intent ?? null, intentNotes: r.intentNotes ?? [],
   notes: r.world.solved.notes,
   shots: r.shots.map((s, i) => ({ name: `shot-${i + 1}`, total: +s.shot.total.toFixed(3), camera: s.shot.cam, info: s.shot.info,
     regions: s.maps.regions.map((g) => ({ id: g.id, kind: g.kind, area: +g.area.toFixed(4), centre: g.centre.map((v) => +v.toFixed(3)), box: g.box.map((v) => +v.toFixed(3)) })),
@@ -49,4 +52,5 @@ const report = {
 };
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 1));
 console.log(`${file}: ${r.shots.length} shot(s) in ${report.seconds.toFixed(1)} s -> ${out}${r.built ? `  (staging: ${r.built.winner.name}, $${report.usd.toFixed(4)})` : ''}`);
+if (r.intent) console.log(`  intent: ${JSON.stringify(r.intent)}${r.intentNotes?.length ? '  [' + r.intentNotes.join('; ') + ']' : ''}`);
 for (const s of report.shots) console.log(`  ${s.name}: ${s.total}  h=${s.info.camera_height?.toFixed(2)} m pitch=${s.info.pitch_deg?.toFixed(0)}° ${s.camera.focal}mm ${s.camera.aspect}${s.note ? '  [' + s.note + ']' : ''}`);
