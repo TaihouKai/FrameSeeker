@@ -111,6 +111,13 @@ intents, the search's best camera:
   (Bordwell 1985: shame or grief hidden, absorption, watching something further off, hidden identity, following
   someone who walks away) looked promising on the 119 shots it was chosen on, and failed on 45 new shots from three
   new episodes, frozen beforehand: the people it flagged were shown from the front or the side, not from behind.
+  Counted in full over passages instead (every shot of 13 passages where someone grieves or walks away and 13 of
+  everyday talk in the same episodes, passages chosen from the transcripts and frozen before any frame was seen,
+  labelled blind), the person is shown from behind in 29% of the shots of the first kind against 15% of the second
+  (permutation over passages p 0.005), and is the back-turned subject of the shot in 13% against 5%. So the intent
+  does move the face's weight, but at the scale of a passage and as a minority choice: even then most shots show the
+  face. A per-shot rule asked of the LLM is the wrong grain; the passage's intent is the right one, and the scorer
+  stays unchanged until that is fitted and tested on films it was not fitted on.
 - **Extraction** (`extractIntent`) is written and checked against the scene's ids, but not yet run on stories.
 
 ## Pointing: who the eye goes to
