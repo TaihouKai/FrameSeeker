@@ -1,0 +1,394 @@
+{
+ "version": 1,
+ "story": "放学后的教室只剩下两个人。窗外的夕阳把课桌染成橘色。\n\n「明天我就转学了。」阿健把最后一本书塞进书包，拉上拉链，语气轻松得像在说明天的天气。\n\n小雪坐在自己的座位上，低着头，手指紧紧攥着裙角，一句话也没说。\n\n阿健走到教室门口，停了一下。他没有回头，只是背对着她举起右手，竖了个大拇指：「别哭啊，班长。」然后拉开门走了出去。\n",
+ "scene": {
+  "place": {
+   "kind": "classroom",
+   "description": "a classroom after school, the desks stained orange by the setting sun through the window",
+   "tags": [
+    "classroom"
+   ],
+   "width": 9,
+   "length": 7,
+   "height": 3
+  },
+  "time": {
+   "of_day": "sunset",
+   "weather": "clear"
+  },
+  "actors": [
+   {
+    "id": "ken",
+    "pose": "thumbs_up",
+    "facing": "door",
+    "looks_at": "door",
+    "speaking": true,
+    "place": {
+     "at": [
+      0,
+      -3
+     ]
+    },
+    "prompt": {
+     "look": [
+      "1boy"
+     ],
+     "outfit": [
+      "school bag"
+     ],
+     "expression": []
+    }
+   },
+   {
+    "id": "xue",
+    "pose": "sit_dejected",
+    "looks_at": [
+     1.5,
+     0.7,
+     1
+    ],
+    "speaking": false,
+    "place": {
+     "at": [
+      1.5,
+      1
+     ],
+     "elevation": 0.45
+    },
+    "prompt": {
+     "look": [
+      "1girl"
+     ],
+     "outfit": [],
+     "expression": [
+      "sad"
+     ]
+    }
+   }
+  ],
+  "structures": [
+   {
+    "id": "door",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 2,
+     "width": 0.9,
+     "depth": 0.1
+    },
+    "place": {
+     "at": [
+      0,
+      -3.45
+     ]
+    },
+    "prompt": [
+     "door"
+    ]
+   },
+   {
+    "id": "window",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 1.5,
+     "width": 3,
+     "depth": 0.1
+    },
+    "glass": true,
+    "place": {
+     "at": [
+      0,
+      3.45
+     ]
+    },
+    "prompt": [
+     "window"
+    ]
+   },
+   {
+    "id": "desk1",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 0.7,
+     "width": 1.2,
+     "depth": 0.6
+    },
+    "place": {
+     "at": [
+      -1.5,
+      0.5
+     ]
+    },
+    "prompt": [
+     "desk",
+     "school desk"
+    ]
+   },
+   {
+    "id": "desk2",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 0.7,
+     "width": 1.2,
+     "depth": 0.6
+    },
+    "place": {
+     "at": [
+      1.5,
+      0.5
+     ]
+    },
+    "prompt": [
+     "desk",
+     "school desk"
+    ]
+   },
+   {
+    "id": "desk3",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 0.7,
+     "width": 1.2,
+     "depth": 0.6
+    },
+    "place": {
+     "at": [
+      -1.5,
+      2
+     ]
+    },
+    "prompt": [
+     "desk",
+     "school desk"
+    ]
+   },
+   {
+    "id": "desk4",
+    "kind": "other",
+    "shape": "box",
+    "size": {
+     "height": 0.7,
+     "width": 1.2,
+     "depth": 0.6
+    },
+    "place": {
+     "at": [
+      1.5,
+      2
+     ]
+    },
+    "prompt": [
+     "desk",
+     "school desk"
+    ]
+   }
+  ],
+  "effects": [],
+  "moment": {
+   "focus": "ken",
+   "intent": "emotion",
+   "may_hide": []
+  },
+  "version": 1
+ },
+ "panels": [
+  {
+   "beat": {
+    "what": "阿健把最后一本书塞进书包，拉上拉链，语气轻松地说：「明天我就转学了。」",
+    "actors": [
+     {
+      "id": "ken",
+      "pose": "carry_bag",
+      "place": {
+       "at": [
+        -1.5,
+        -0.3
+       ]
+      },
+      "facing": "xue",
+      "looks_at": "xue",
+      "speaking": true,
+      "expression": [
+       "calm",
+       "light"
+      ]
+     },
+     {
+      "id": "xue",
+      "pose": "sit_dejected",
+      "place": {
+       "at": [
+        1.5,
+        1
+       ],
+       "elevation": 0.45
+      },
+      "facing": "ken",
+      "speaking": false,
+      "expression": [
+       "sad",
+       "silent"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "ken",
+    "convey": [
+     {
+      "what": "together",
+      "who": [
+       "ken",
+       "xue"
+      ]
+     },
+     {
+      "what": "face",
+      "who": "ken"
+     }
+    ],
+    "why": "Ken zips his bag and drops the news of his transfer as lightly as the weather, while Xue sits silent."
+   }
+  },
+  {
+   "beat": {
+    "what": "小雪低着头，一句话也没说，手指紧紧攥着裙角。",
+    "actors": [
+     {
+      "id": "xue",
+      "pose": "sit_dejected",
+      "place": {
+       "at": [
+        1.5,
+        1
+       ],
+       "elevation": 0.45
+      },
+      "facing": "ken",
+      "looks_at": "gaze",
+      "speaking": false,
+      "expression": [
+       "sad",
+       "holding back"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "xue",
+    "convey": [
+     {
+      "what": "detail",
+      "who": "xue",
+      "part": "hands"
+     }
+    ],
+    "why": "Her clenched hands on the skirt hem are the only answer she gives."
+   }
+  },
+  {
+   "beat": {
+    "what": "阿健走到教室门口，停了一下，没有回头，背对着她举起右手竖了个大拇指：「别哭啊，班长。」",
+    "actors": [
+     {
+      "id": "ken",
+      "pose": "thumbs_up",
+      "place": {
+       "at": [
+        0,
+        -2.9
+       ]
+      },
+      "facing": "door",
+      "looks_at": "door",
+      "speaking": true,
+      "expression": [
+       "smile"
+      ]
+     },
+     {
+      "id": "xue",
+      "pose": "sit_dejected",
+      "place": {
+       "at": [
+        1.5,
+        1
+       ],
+       "elevation": 0.45
+      },
+      "facing": "ken",
+      "looks_at": "ken",
+      "speaking": false,
+      "expression": [
+       "sad"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "ken",
+    "convey": [
+     {
+      "what": "sees",
+      "who": "xue",
+      "target": "ken"
+     },
+     {
+      "what": "together",
+      "who": [
+       "ken",
+       "xue"
+      ]
+     }
+    ],
+    "why": "Without turning round he raises a thumbs-up over his shoulder and tells her not to cry."
+   }
+  },
+  {
+   "beat": {
+    "what": "门开了又关上，阿健走了出去；教室里只剩下小雪一个人，夕阳把课桌染成橘色。",
+    "actors": [
+     {
+      "id": "xue",
+      "pose": "sit_dejected",
+      "place": {
+       "at": [
+        1.5,
+        1
+       ],
+       "elevation": 0.45
+      },
+      "facing": "door",
+      "looks_at": "door",
+      "speaking": false,
+      "expression": [
+       "sad"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "xue",
+    "convey": [
+     {
+      "what": "alone",
+      "who": "xue"
+     },
+     {
+      "what": "face",
+      "who": "xue"
+     }
+    ],
+    "why": "The door has closed behind him and she is left alone in the orange classroom."
+   }
+  }
+ ]
+}

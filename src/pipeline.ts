@@ -8,7 +8,7 @@
 import { atBeat, extractScene, realize, stageScene, type Beat, type Built, type Chat, type Rating, type Scene, type World3D } from './scene/index.ts';
 import { maps, rate, shoot, SIZE, type SearchOpts, type Shot, type ShotMaps } from './camera/index.ts';
 import { GeneratorUnavailable, type Generator } from './generate/index.ts';
-import { storyboard, preferences, applyIntent, type IntentWeights, type Panel, type ShotIntent } from './intent/index.ts';
+import { storyboard, checkIntent, preferences, applyIntent, type IntentWeights, type Panel, type ShotIntent } from './intent/index.ts';
 import type { Image } from './shared/image.ts';
 
 /** meta: what the renderer reported (its prompt, its checks) */
@@ -16,6 +16,11 @@ export interface ShotResult { shot: Shot; maps: ShotMaps; image: Image | null; m
 /** One panel: its instant, its intent, its world and the cameras found for it. */
 export interface PanelResult { beat?: Beat; intent?: ShotIntent; world: World3D; shots: ShotResult[] }
 export interface RunResult { built: Built | null; panels: PanelResult[]; notes: string[] }
+/**
+ * A strip as the LLM wrote it: the set and cast (staged), each panel's beat and intent, and the story they came from.
+ * `run` saves one (storyboard.json); replaying it needs no LLM and gives the same pictures (phases 3–6).
+ */
+export interface Storyboard { version: 1; story?: string; scene: Scene; panels: Panel[] }
 
 export interface RunOpts {
   /** cameras to keep per panel (default 3 for one panel, 1 for several) */
@@ -45,14 +50,29 @@ export async function runText(text: string, opts: RunOpts & { chat: Chat; focus?
   }
   // staging is judged on every panel: a set piece stays only if the strip as a whole gains
   const built = await stageScene(text, extracted, { chat: opts.chat, rate: (w) => rateStrip(w.scene, board, opts.intentWeights) });
-  const panels: PanelResult[] = [];
-  for (const p of board) panels.push(await runPanel(built.winner.scene, p, { ...opts, k: opts.k ?? (n > 1 ? 1 : 3) }));
-  return { built, panels, notes };
+  const r = await runStoryboard({ version: 1, story: text, scene: built.winner.scene, panels: board }, opts);
+  return { built, panels: r.panels, notes: [...notes, ...r.notes] };
+}
+
+/** From a storyboard (phases 3–6, no LLM): each panel's beat is solved on the set, its intent checked against it. */
+export async function runStoryboard(board: Storyboard, opts: RunOpts = {}): Promise<RunResult> {
+  const notes: string[] = [], panels: PanelResult[] = [];
+  const k = opts.k ?? (board.panels.length > 1 ? 1 : 3);
+  for (const [i, p] of board.panels.entries()) {
+    let panel = p;
+    if (p.intent) {
+      const c = checkIntent(p.intent, p.beat ? atBeat(board.scene, p.beat) : board.scene);
+      notes.push(...c.notes.map((x) => `panel ${i + 1}: ${x}`));
+      panel = { ...p, intent: c.intent };
+    }
+    panels.push(await runPanel(board.scene, panel, { ...opts, k }));
+  }
+  return { built: null, panels, notes };
 }
 
 /** From a scene JSON (phases 3–6, no LLM): one panel, the scene's own instant. */
 export async function runScene(scene: Scene, opts: RunOpts = {}): Promise<RunResult> {
-  return { built: null, panels: [await runPanel(scene, opts.intent ? { intent: opts.intent } : {}, opts)], notes: [] };
+  return runStoryboard({ version: 1, scene, panels: [opts.intent ? { intent: opts.intent } : {}] }, opts);
 }
 
 /** The scene at a panel: its beat (who is where), then its intent (what must be in frame). */

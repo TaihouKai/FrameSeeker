@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { atBeat, realize, type Scene } from '../src/scene/index.ts';
 import { checkIntent, readStoryboard } from '../src/intent/index.ts';
-import { runScene } from '../src/pipeline.ts';
+import { readFileSync } from 'node:fs';
+import { runScene, runStoryboard, type Storyboard } from '../src/pipeline.ts';
 
 // a set: a classroom, a door placed beside "ken", ken talking to "yuki" who sits
 const set: Scene = {
@@ -79,5 +80,15 @@ describe('beats: one set, several instants (the panels of a strip)', () => {
     expect(w.solved.notes.some((n) => /ken stood against "shelf"/.test(n))).toBe(true);
     expect(w.solved.actors.get('ken')!.pos[2]).toBeCloseTo(-2 + 0.25 + 0.3, 6);
     expect(w.world.room).toEqual({ hx: 4, hz: 5, h: 3 });
+  });
+
+  it('BT7 a saved storyboard replays with no LLM, the same pictures each time', async () => {
+    const board = JSON.parse(readFileSync('storyboards/sprain.json', 'utf8')) as Storyboard;
+    const opts = { search: { n: 300, refine: 2, iters: 4 } };
+    const a = await runStoryboard(board, opts), b = await runStoryboard(board, opts);
+    expect(a.panels.length).toBe(4);
+    expect(a.panels.map((p) => p.shots.length)).toEqual([1, 1, 1, 1]);
+    expect(a.panels.map((p) => p.shots[0].shot.total)).toEqual(b.panels.map((p) => p.shots[0].shot.total));
+    expect(a.panels[2].intent!.convey).toEqual([{ what: 'detail', who: 'a', part: 'right_foot' }]);
   });
 });

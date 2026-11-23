@@ -1,0 +1,338 @@
+{
+ "version": 1,
+ "story": "放学路上，小遥追着公交车跑过路口，脚下一滑，整个人摔在人行道上。\n\n她咬着牙想站起来，右脚踝却一阵钻心的疼，肿得连鞋都快穿不上了。\n\n阿凉蹲下来，看了看她的脚，叹了口气：「别逞强了，我背你。」\n",
+ "scene": {
+  "place": {
+   "kind": "street",
+   "description": "a city street intersection with a sidewalk, on the way home from school",
+   "tags": [
+    "street",
+    "road",
+    "sidewalk",
+    "crosswalk",
+    "intersection"
+   ],
+   "width": 20
+  },
+  "time": {
+   "of_day": "afternoon",
+   "weather": "clear"
+  },
+  "actors": [
+   {
+    "id": "a",
+    "pose": "trip",
+    "facing": "bus",
+    "looks_at": [
+     8,
+     0,
+     -1.5
+    ],
+    "approaches": "bus",
+    "speaking": false,
+    "height": 1.55,
+    "place": {
+     "at": [
+      8,
+      0
+     ]
+    },
+    "prompt": {
+     "look": [
+      "1girl"
+     ],
+     "outfit": [
+      "school uniform"
+     ],
+     "expression": [
+      "surprised"
+     ]
+    }
+   },
+   {
+    "id": "b",
+    "pose": "stand",
+    "facing": "a",
+    "looks_at": "a",
+    "speaking": false,
+    "height": 1.7,
+    "place": {
+     "from": "a",
+     "distance": 2.5,
+     "bearing": "behind"
+    },
+    "prompt": {
+     "look": [
+      "1boy"
+     ],
+     "outfit": [
+      "school uniform"
+     ],
+     "expression": []
+    }
+   }
+  ],
+  "structures": [
+   {
+    "id": "bus",
+    "kind": "vehicle",
+    "size": {
+     "height": 3.2,
+     "width": 2.5,
+     "depth": 11
+    },
+    "place": {
+     "at": [
+      0,
+      -14
+     ]
+    },
+    "prompt": [
+     "bus",
+     "city bus"
+    ]
+   },
+   {
+    "id": "signpost",
+    "kind": "pillar",
+    "size": {
+     "height": 4.5,
+     "width": 0.3,
+     "depth": 0.3
+    },
+    "place": {
+     "from": "a",
+     "distance": 1.8,
+     "bearing": "right"
+    },
+    "prompt": [
+     "traffic light pole",
+     "street signpost",
+     "steel pole",
+     "city street furniture"
+    ]
+   }
+  ],
+  "effects": [],
+  "moment": {
+   "focus": "a",
+   "intent": "action",
+   "may_hide": [
+    "b"
+   ]
+  },
+  "version": 1,
+  "origin": {
+   "a": "text",
+   "b": "text",
+   "bus": "text",
+   "signpost": "staged"
+  }
+ },
+ "panels": [
+  {
+   "beat": {
+    "what": "放学路上，小遥追着公交车跑过路口，脚下一滑，整个人摔在人行道上。",
+    "actors": [
+     {
+      "id": "a",
+      "pose": "trip",
+      "place": {
+       "at": [
+        8,
+        0
+       ]
+      },
+      "facing": "bus",
+      "looks_at": "bus",
+      "approaches": "bus",
+      "speaking": false,
+      "expression": [
+       "surprised",
+       "alarmed",
+       "mouth open"
+      ]
+     },
+     {
+      "id": "b",
+      "pose": "look_back",
+      "place": {
+       "at": [
+        8,
+        -2.5
+       ]
+      },
+      "facing": "a",
+      "looks_at": "a",
+      "speaking": false,
+      "expression": [
+       "startled"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "a",
+    "convey": [
+     {
+      "what": "scale",
+      "who": "a",
+      "against": "bus"
+     }
+    ],
+    "why": "She is the one pitching forward mid-fall while chasing the bus."
+   }
+  },
+  {
+   "beat": {
+    "what": "她咬着牙想站起来，右脚踝却一阵钻心的疼。",
+    "actors": [
+     {
+      "id": "a",
+      "pose": "fallen_sitting",
+      "place": {
+       "at": [
+        8,
+        0
+       ]
+      },
+      "facing": "b",
+      "looks_at": "b",
+      "speaking": false,
+      "expression": [
+       "pain",
+       "gritted teeth",
+       "straining"
+      ]
+     },
+     {
+      "id": "b",
+      "pose": "walk",
+      "place": {
+       "at": [
+        8,
+        -2.5
+       ]
+      },
+      "facing": "a",
+      "looks_at": "a",
+      "approaches": "a",
+      "speaking": false,
+      "expression": [
+       "worried"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "a",
+    "convey": [
+     {
+      "what": "face",
+      "who": "a"
+     },
+     {
+      "what": "vulnerable",
+      "who": "a"
+     }
+    ],
+    "why": "Her face shows the pain that stops her from getting up."
+   }
+  },
+  {
+   "beat": {
+    "what": "右脚踝肿得连鞋都快穿不上了。",
+    "actors": [
+     {
+      "id": "a",
+      "pose": "sit_hold_ankle",
+      "place": {
+       "at": [
+        8,
+        0
+       ]
+      },
+      "speaking": false,
+      "expression": [
+       "pain"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "a",
+    "convey": [
+     {
+      "what": "detail",
+      "who": "a",
+      "part": "right_foot"
+     }
+    ],
+    "why": "The swollen ankle is the injury the whole moment turns on."
+   }
+  },
+  {
+   "beat": {
+    "what": "阿凉蹲下来，看了看她的脚，叹了口气：「别逞强了，我背你。」",
+    "actors": [
+     {
+      "id": "b",
+      "pose": "kneel_aid",
+      "place": {
+       "at": [
+        8,
+        -1
+       ]
+      },
+      "facing": "a",
+      "looks_at": "a",
+      "speaking": true,
+      "expression": [
+       "sigh",
+       "resigned",
+       "concerned"
+      ]
+     },
+     {
+      "id": "a",
+      "pose": "sit_hold_ankle",
+      "place": {
+       "at": [
+        8,
+        0
+       ]
+      },
+      "facing": "b",
+      "looks_at": "b",
+      "speaking": false,
+      "expression": [
+       "pain",
+       "relieved"
+      ]
+     }
+    ],
+    "effects": []
+   },
+   "intent": {
+    "subject": "b",
+    "convey": [
+     {
+      "what": "together",
+      "who": [
+       "b",
+       "a"
+      ]
+     },
+     {
+      "what": "face",
+      "who": "b"
+     }
+    ],
+    "why": "He gives in and offers to carry her, the story's turn."
+   }
+  }
+ ]
+}

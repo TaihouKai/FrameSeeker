@@ -1,20 +1,21 @@
-// npm run frameseeker -- <story.txt | scene.json> [--panels 1] [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]
+// npm run frameseeker -- <story.txt | scene.json | storyboard.json> [--panels 1] [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]
 // The whole pipeline. A .txt goes through all six phases (phases 1–2 and the storyboard call the LLM: Venice, the
 // local test key). --panels N draws the story as N pictures, each one instant with its own intent (a strip); with one,
-// the LLM writes the shot's intent unless --intent gives one or --no-intent skips it. A .json scene starts at phase 3
-// (one panel). Writes per shot: preview, depth, lineart, pose, a mask per region, the colour hint (effects); with
+// the LLM writes the shot's intent unless --intent gives one or --no-intent skips it. A story's run saves
+// storyboard.json (the set, each panel's beat and intent); given back, it replays the strip from phase 3, no LLM.
+// A .json scene starts at phase 3 (one panel). Writes per shot: preview, depth, lineart, pose, a mask per region, the colour hint (effects); with
 // several panels each file is prefixed panel-<i>-, and strip.png puts the panels' first shots side by side;
 // report.json has everything.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
-import { runScene, runText } from '../pipeline.ts';
+import { runScene, runStoryboard, runText, type Storyboard } from '../pipeline.ts';
 import { veniceChat, type Scene } from '../scene/index.ts';
 import { GENERATORS } from '../generate/index.ts';
 import { hstack, toPng } from '../shared/image.ts';
 import type { ShotIntent } from '../intent/index.ts';
 import { loadConfig } from './config.ts';
 
-const USAGE = 'usage: npm run frameseeker -- <story.txt | scene.json> [--panels 1] [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]';
+const USAGE = 'usage: npm run frameseeker -- <story.txt | scene.json | storyboard.json> [--panels 1] [--focus "..."] [--people people.json] [--k 3] [--intent intent.json] [--no-intent] [--generator <name>] [--out dir]';
 const args = process.argv.slice(2);
 const flag = (name: string) => { const i = args.indexOf(`--${name}`); if (i >= 0) args.splice(i, 1); return i >= 0; };
 const opt = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
@@ -32,13 +33,22 @@ const out = outOpt ?? join('out', 'run-' + basename(file, extname(file)));
 mkdirSync(out, { recursive: true });
 const t0 = Date.now();
 const isText = extname(file) === '.txt';
-if (!isText && panels > 1) { console.error('--panels needs a story text: a scene JSON is one instant'); process.exit(2); }
+if (!isText && panels > 1) { console.error('--panels needs a story text: a scene JSON is one instant, a storyboard has its own panels'); process.exit(2); }
 const chat = isText ? veniceChat() : null;
-const r = isText
-  ? await runText(readFileSync(file, 'utf8'), { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator, intent, intentWeights, panels, withIntent: !noIntent })
-  : await runScene(JSON.parse(readFileSync(file, 'utf8')) as Scene, { k, generator, intent, intentWeights });
+const json = isText ? null : JSON.parse(readFileSync(file, 'utf8')) as Scene | Storyboard;
+const isBoard = !!json && 'panels' in json;
+if (isBoard && intent) { console.error('--intent is for a scene: a storyboard gives each panel its intent'); process.exit(2); }
+const story = isText ? readFileSync(file, 'utf8') : undefined;
+const r = story !== undefined
+  ? await runText(story, { chat: chat!, focus, people: peopleFile ? JSON.parse(readFileSync(peopleFile, 'utf8')) : [], k, generator, intent, intentWeights, panels, withIntent: !noIntent })
+  : isBoard ? await runStoryboard(json as Storyboard, { k, generator, intentWeights })
+  : await runScene(json as Scene, { k, generator, intent, intentWeights });
 
-if (r.built) writeFileSync(join(out, 'scene.json'), JSON.stringify(r.built.winner.scene, null, 1));
+if (r.built) {
+  writeFileSync(join(out, 'scene.json'), JSON.stringify(r.built.winner.scene, null, 1));
+  const board: Storyboard = { version: 1, story, scene: r.built.winner.scene, panels: r.panels.map((p) => ({ ...(p.beat ? { beat: p.beat } : {}), ...(p.intent ? { intent: p.intent } : {}) })) };
+  writeFileSync(join(out, 'storyboard.json'), JSON.stringify(board, null, 1));
+}
 const many = r.panels.length > 1;
 r.panels.forEach((p, pi) => p.shots.forEach((s, i) => {
   const n = `${many ? `panel-${pi + 1}-` : ''}shot-${i + 1}`;

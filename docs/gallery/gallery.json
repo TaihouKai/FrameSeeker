@@ -1,5 +1,109 @@
 [
  {
+  "scene": "scenes/classroom-talk.json",
+  "moment": {
+   "focus": "a",
+   "intent": "emotion",
+   "must_show": [
+    "b"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.895,
+    "height_m": 1.1,
+    "pitch_deg": 14,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.891,
+    "height_m": 1.23,
+    "pitch_deg": 5,
+    "focal_mm": 50,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.891,
+    "height_m": 0.7,
+    "pitch_deg": 10,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   }
+  ],
+  "regions": [
+   {
+    "id": "a",
+    "kind": "person"
+   },
+   {
+    "id": "b",
+    "kind": "person"
+   },
+   {
+    "id": "env-ceiling",
+    "kind": "environment"
+   },
+   {
+    "id": "env-wall",
+    "kind": "environment"
+   },
+   {
+    "id": "env-blackboard",
+    "kind": "environment"
+   }
+  ]
+ },
+ {
+  "scene": "scenes/rooftop-strike.json",
+  "moment": {
+   "focus": "y",
+   "action_line": "strike",
+   "source": "x",
+   "intent": "action",
+   "must_show": [
+    "x"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.929,
+    "height_m": 1.43,
+    "pitch_deg": 1,
+    "focal_mm": 85,
+    "aspect": "landscape"
+   },
+   {
+    "total": 0.883,
+    "height_m": 0.54,
+    "pitch_deg": 24,
+    "focal_mm": 18,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.877,
+    "height_m": 1.12,
+    "pitch_deg": 9,
+    "focal_mm": 24,
+    "aspect": "portrait"
+   }
+  ],
+  "regions": [
+   {
+    "id": "x",
+    "kind": "person"
+   },
+   {
+    "id": "y",
+    "kind": "person"
+   },
+   {
+    "id": "strike",
+    "kind": "line"
+   }
+  ]
+ },
+ {
   "scene": "scenes/beam-clash.json",
   "moment": {
    "focus": "dodger",
@@ -54,124 +158,6 @@
   ]
  },
  {
-  "scene": "scenes/classroom-talk.json",
-  "moment": {
-   "focus": "a",
-   "intent": "emotion",
-   "must_show": [
-    "b"
-   ]
-  },
-  "shots": [
-   {
-    "total": 0.965,
-    "height_m": 1.34,
-    "pitch_deg": 6,
-    "focal_mm": 50,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.893,
-    "height_m": 1.2,
-    "pitch_deg": 10,
-    "focal_mm": 35,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.85,
-    "height_m": 1.66,
-    "pitch_deg": -7,
-    "focal_mm": 35,
-    "aspect": "landscape"
-   }
-  ],
-  "regions": [
-   {
-    "id": "a",
-    "kind": "person"
-   },
-   {
-    "id": "b",
-    "kind": "person"
-   },
-   {
-    "id": "env-wall",
-    "kind": "environment"
-   },
-   {
-    "id": "env-ceiling",
-    "kind": "environment"
-   },
-   {
-    "id": "env-blackboard",
-    "kind": "environment"
-   }
-  ]
- },
- {
-  "scene": "scenes/lab-tanks.json",
-  "moment": {
-   "focus": "researcher",
-   "intent": "reveal",
-   "must_show": [
-    "tank2"
-   ]
-  },
-  "shots": [
-   {
-    "total": 0.766,
-    "height_m": 0.41,
-    "pitch_deg": 8,
-    "focal_mm": 35,
-    "aspect": "portrait"
-   },
-   {
-    "total": 0.757,
-    "height_m": 0.76,
-    "pitch_deg": 4,
-    "focal_mm": 28,
-    "aspect": "portrait"
-   },
-   {
-    "total": 0.71,
-    "height_m": 3.7,
-    "pitch_deg": -24,
-    "focal_mm": 28,
-    "aspect": "portrait"
-   }
-  ],
-  "regions": [
-   {
-    "id": "researcher",
-    "kind": "person"
-   },
-   {
-    "id": "tank2",
-    "kind": "structure"
-   },
-   {
-    "id": "tank5",
-    "kind": "structure"
-   },
-   {
-    "id": "tank6",
-    "kind": "structure"
-   },
-   {
-    "id": "env-ceiling",
-    "kind": "environment"
-   },
-   {
-    "id": "env-wall",
-    "kind": "environment"
-   },
-   {
-    "id": "env-floor",
-    "kind": "environment"
-   }
-  ]
- },
- {
   "scene": "scenes/reference-truss.json",
   "moment": {
    "focus": "figure",
@@ -218,55 +204,6 @@
   ]
  },
  {
-  "scene": "scenes/rooftop-strike.json",
-  "moment": {
-   "focus": "y",
-   "action_line": "strike",
-   "source": "x",
-   "intent": "action",
-   "must_show": [
-    "x"
-   ]
-  },
-  "shots": [
-   {
-    "total": 0.929,
-    "height_m": 1.43,
-    "pitch_deg": 1,
-    "focal_mm": 85,
-    "aspect": "landscape"
-   },
-   {
-    "total": 0.883,
-    "height_m": 0.54,
-    "pitch_deg": 24,
-    "focal_mm": 18,
-    "aspect": "portrait"
-   },
-   {
-    "total": 0.877,
-    "height_m": 1.12,
-    "pitch_deg": 9,
-    "focal_mm": 24,
-    "aspect": "portrait"
-   }
-  ],
-  "regions": [
-   {
-    "id": "x",
-    "kind": "person"
-   },
-   {
-    "id": "y",
-    "kind": "person"
-   },
-   {
-    "id": "strike",
-    "kind": "line"
-   }
-  ]
- },
- {
   "scene": "scenes/street-lookback.json",
   "moment": {
    "focus": "p",
@@ -303,6 +240,73 @@
   ]
  },
  {
+  "scene": "scenes/lab-tanks.json",
+  "moment": {
+   "focus": "researcher",
+   "intent": "reveal",
+   "must_show": [
+    "tank2"
+   ]
+  },
+  "shots": [
+   {
+    "total": 0.757,
+    "height_m": 0.76,
+    "pitch_deg": 4,
+    "focal_mm": 28,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.737,
+    "height_m": 0.53,
+    "pitch_deg": 18,
+    "focal_mm": 18,
+    "aspect": "portrait"
+   },
+   {
+    "total": 0.71,
+    "height_m": 3.7,
+    "pitch_deg": -24,
+    "focal_mm": 28,
+    "aspect": "portrait"
+   }
+  ],
+  "regions": [
+   {
+    "id": "researcher",
+    "kind": "person"
+   },
+   {
+    "id": "assistant",
+    "kind": "person"
+   },
+   {
+    "id": "tank2",
+    "kind": "structure"
+   },
+   {
+    "id": "tank4",
+    "kind": "structure"
+   },
+   {
+    "id": "tank5",
+    "kind": "structure"
+   },
+   {
+    "id": "env-ceiling",
+    "kind": "environment"
+   },
+   {
+    "id": "env-wall",
+    "kind": "environment"
+   },
+   {
+    "id": "env-floor",
+    "kind": "environment"
+   }
+  ]
+ },
+ {
   "scene": "scenes/ward-pods.json",
   "moment": {
    "focus": "girl",
@@ -320,18 +324,18 @@
     "aspect": "landscape"
    },
    {
-    "total": 0.758,
-    "height_m": 0.32,
-    "pitch_deg": 8,
+    "total": 0.781,
+    "height_m": 0.45,
+    "pitch_deg": 7,
     "focal_mm": 85,
-    "aspect": "landscape"
+    "aspect": "portrait"
    },
    {
-    "total": 0.708,
-    "height_m": 1.3,
-    "pitch_deg": 2,
+    "total": 0.707,
+    "height_m": 2.67,
+    "pitch_deg": -11,
     "focal_mm": 50,
-    "aspect": "landscape"
+    "aspect": "portrait"
    }
   ],
   "regions": [
@@ -358,6 +362,240 @@
    {
     "id": "env-wall",
     "kind": "environment"
+   }
+  ]
+ },
+ {
+  "storyboard": "storyboards/sprain.json",
+  "notes": [],
+  "panels": [
+   {
+    "beat": "放学路上，小遥追着公交车跑过路口，脚下一滑，整个人摔在人行道上。",
+    "intent": {
+     "subject": "a",
+     "convey": [
+      {
+       "what": "scale",
+       "who": "a",
+       "against": "bus"
+      }
+     ],
+     "why": "She is the one pitching forward mid-fall while chasing the bus."
+    },
+    "shot": {
+     "total": 0.945,
+     "height_m": 2.81,
+     "pitch_deg": -3,
+     "focal_mm": 85,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "a against bus": 1
+    }
+   },
+   {
+    "beat": "她咬着牙想站起来，右脚踝却一阵钻心的疼。",
+    "intent": {
+     "subject": "a",
+     "convey": [
+      {
+       "what": "face",
+       "who": "a"
+      },
+      {
+       "what": "vulnerable",
+       "who": "a"
+      }
+     ],
+     "why": "Her face shows the pain that stops her from getting up."
+    },
+    "shot": {
+     "total": 0.861,
+     "height_m": 2.06,
+     "pitch_deg": -29,
+     "focal_mm": 85,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "face: a": 0.9646885878218604,
+     "vulnerable: a": 0.9152301432370874
+    }
+   },
+   {
+    "beat": "右脚踝肿得连鞋都快穿不上了。",
+    "intent": {
+     "subject": "a",
+     "convey": [
+      {
+       "what": "detail",
+       "who": "a",
+       "part": "right_foot"
+      }
+     ],
+     "why": "The swollen ankle is the injury the whole moment turns on."
+    },
+    "shot": {
+     "total": 0.986,
+     "height_m": 0.24,
+     "pitch_deg": -2,
+     "focal_mm": 85,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "a's right_foot": 0.999137987852782
+    }
+   },
+   {
+    "beat": "阿凉蹲下来，看了看她的脚，叹了口气：「别逞强了，我背你。」",
+    "intent": {
+     "subject": "b",
+     "convey": [
+      {
+       "what": "together",
+       "who": [
+        "b",
+        "a"
+       ]
+      },
+      {
+       "what": "face",
+       "who": "b"
+      }
+     ],
+     "why": "He gives in and offers to carry her, the story's turn."
+    },
+    "shot": {
+     "total": 0.797,
+     "height_m": 0.25,
+     "pitch_deg": 34,
+     "focal_mm": 50,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "b + a together": 1,
+     "face: b": 0.5661353032405284
+    }
+   }
+  ]
+ },
+ {
+  "storyboard": "storyboards/farewell.json",
+  "notes": [],
+  "panels": [
+   {
+    "beat": "阿健把最后一本书塞进书包，拉上拉链，语气轻松地说：「明天我就转学了。」",
+    "intent": {
+     "subject": "ken",
+     "convey": [
+      {
+       "what": "together",
+       "who": [
+        "ken",
+        "xue"
+       ]
+      },
+      {
+       "what": "face",
+       "who": "ken"
+      }
+     ],
+     "why": "Ken zips his bag and drops the news of his transfer as lightly as the weather, while Xue sits silent."
+    },
+    "shot": {
+     "total": 0.306,
+     "height_m": 1.19,
+     "pitch_deg": 3,
+     "focal_mm": 50,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "ken + xue together": 1,
+     "face: ken": 0
+    }
+   },
+   {
+    "beat": "小雪低着头，一句话也没说，手指紧紧攥着裙角。",
+    "intent": {
+     "subject": "xue",
+     "convey": [
+      {
+       "what": "detail",
+       "who": "xue",
+       "part": "hands"
+      }
+     ],
+     "why": "Her clenched hands on the skirt hem are the only answer she gives."
+    },
+    "shot": {
+     "total": 0.991,
+     "height_m": 0.47,
+     "pitch_deg": 23,
+     "focal_mm": 50,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "xue's hands": 1
+    }
+   },
+   {
+    "beat": "阿健走到教室门口，停了一下，没有回头，背对着她举起右手竖了个大拇指：「别哭啊，班长。」",
+    "intent": {
+     "subject": "ken",
+     "convey": [
+      {
+       "what": "sees",
+       "who": "xue",
+       "target": "ken"
+      },
+      {
+       "what": "together",
+       "who": [
+        "ken",
+        "xue"
+       ]
+      }
+     ],
+     "why": "Without turning round he raises a thumbs-up over his shoulder and tells her not to cry."
+    },
+    "shot": {
+     "total": 0.86,
+     "height_m": 2.28,
+     "pitch_deg": -11,
+     "focal_mm": 35,
+     "aspect": "portrait"
+    },
+    "prefs": {
+     "xue sees ken": 1,
+     "ken + xue together": 1
+    }
+   },
+   {
+    "beat": "门开了又关上，阿健走了出去；教室里只剩下小雪一个人，夕阳把课桌染成橘色。",
+    "intent": {
+     "subject": "xue",
+     "convey": [
+      {
+       "what": "alone",
+       "who": "xue"
+      },
+      {
+       "what": "face",
+       "who": "xue"
+      }
+     ],
+     "why": "The door has closed behind him and she is left alone in the orange classroom."
+    },
+    "shot": {
+     "total": 0.374,
+     "height_m": 0.35,
+     "pitch_deg": 36,
+     "focal_mm": 50,
+     "aspect": "landscape"
+    },
+    "prefs": {
+     "alone: xue": 0.3766900531357458,
+     "face: xue": 0.18525729089961274
+    }
    }
   ]
  }

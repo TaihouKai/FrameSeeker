@@ -63,7 +63,7 @@ preferences. Lighting or vanishing lines would be new devices, and new measureme
 | `scale(who, against)` — small against something big | the big thing in frame, many times the person's size | (FrameSeeker's scale shot) |
 | `detail(who, part)` — a part of them: the injured foot, the hand holding the letter, the eyes | an insert: the part fills a good share of the frame (its extent 0.25–0.65 of the frame's height, a first choice); the shot is judged on the part, not the person | Katz: the insert; Mascelli: the cut-in |
 
-Each shot has a `subject` (where the eye goes first) and up to three things to convey, most important first.
+Each shot has a `subject` (where the eye goes first) and at most two things to convey, most important first (more pull one camera different ways; a strip gives each its own panel).
 
 An insert changes what the scorer judges, not only what it prefers: the moment gets a `part`, and the hard rule that
 the focus's head is in frame and seen becomes the same rule for the part; the camera is sampled near the part; the
