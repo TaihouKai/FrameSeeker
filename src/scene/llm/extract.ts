@@ -31,9 +31,14 @@ ${vocabulary()}
 
 SHAPE: ${SHAPE}`;
 
-export async function extract(chat: Chat, input: { text: string; focus?: string; people?: { name: string; description: string }[] }): Promise<Extracted> {
+/** Added when the story is drawn as several panels: the scene becomes the set and the cast of the whole sequence. */
+export const SEQUENCE_NOTE = (n: number) => `
+
+A SEQUENCE: the story will be drawn as ${n} panels, each one instant, all on this one set. So this scene is the SET and the CAST of the whole sequence, not one instant: the place; every structure any panel needs (where it stands for the whole story: a door, a train at the platform, a desk); every person who appears in any panel; every effect that happens in any panel. Place each person where they are at the most striking instant; a later step places them anew for each panel. moment: that instant.`;
+
+export async function extract(chat: Chat, input: { text: string; focus?: string; people?: { name: string; description: string }[]; panels?: number }): Promise<Extracted> {
   const messages: ChatMsg[] = [
-    { role: 'system', content: EXTRACT_PROMPT },
+    { role: 'system', content: EXTRACT_PROMPT + ((input.panels ?? 1) > 1 ? SEQUENCE_NOTE(input.panels!) : '') },
     { role: 'user', content: JSON.stringify({ text: input.text, focus: input.focus ?? '', people: input.people ?? [] }) },
   ];
   let last = '';

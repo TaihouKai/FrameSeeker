@@ -1,0 +1,122 @@
+// The storyboard: an LLM reads the story and the set it was staged as, and splits it into panels, each one instant
+// (who is there, where, how: a beat) and one intent (what that panel must make the viewer understand). One panel
+// carries one or two things: several that one camera cannot show together (a low angle on one person and a high angle
+// on the other) belong to different panels, as a director would cut between them. Everything is checked against the
+// scene's ids and solved; what is unknown is dropped with a note, what cannot be solved goes back to the model once.
+// The camera never sees the LLM: it gets each panel's devices as preferences (devices.ts).
+import { atBeat, layoutOf, realize, vocabulary, type Beat, type Chat, type ChatMsg, type Scene } from '../scene/index.ts';
+import type { Convey, ShotIntent } from './types.ts';
+
+/** At most this many things to convey in one panel. */
+export const MAX_CONVEY = 2;
+
+const CONVEY = `{"what":"face","who":id} the viewer must read their face (a reaction, an emotion)
+{"what":"sees","who":id,"target":id or "gaze"} the viewer must see what they look at ("gaze": what the panel says they look at)
+{"what":"power","who":id,"over":id?} they hold power (over someone)
+{"what":"vulnerable","who":id} they are small, weak, overwhelmed
+{"what":"alone","who":id} they are alone
+{"what":"together","who":[id,id]} these belong together in this moment (a relation, a confrontation)
+{"what":"scale","who":id,"against":id} how small they are against something big`;
+
+export const STORYBOARD_PROMPT = (n: number) => `You are a film director making a storyboard. The story below is drawn as ${n} panel${n > 1 ? 's' : ''}${n > 1 ? ', like a comic strip: each panel one instant, in story order, all on the same set (the SCENE: its place and structures stay where they are; people come, go and move)' : ''}. For each panel say ${n > 1 ? 'what happens, where everyone present is at that instant, and ' : ''}what the panel must make the viewer understand: not how to frame it, only what must come across. Answer with one JSON object and nothing else:
+{"panels":[{${n > 1 ? '"what":"<the story\'s words for this instant>","actors":[{"id":"","pose":"","place":{...},"facing":null,"looks_at":null,"approaches":null,"speaking":false,"aim":null,"expression":[]}],"effects":[],' : ''}"intent":{"subject":"<id>","why":"<one sentence>","convey":[ ...most important first, at most ${MAX_CONVEY}... ]}}]}
+${n > 1 ? `
+- panels: exactly ${n}, in story order. Together they tell the story: choose the instants that carry it (the setup, the turn, the reaction, the aftermath). Only what the text states or plainly implies.
+- actors: the people present at that instant (at least one), by the scene's ids. The scene places everyone at ONE instant only: give every person a "place" for THIS panel's instant (packing a bag: at their desk; leaving: at the door), one PLACEMENT form, relative to the set's structures or to people present in the same panel, or {"at":[x,z]} read off "layout". pose: a name from POSES. facing (an id), looks_at, approaches, speaking, aim and expression (English image-board tags) as at that instant.
+- effects: ids of the scene's effects that happen at that instant (often none).
+` : `
+- The one panel is the scene's own instant: give only "intent".
+`}
+- intent.subject: the id the eye goes to first (a person present in the panel). convey items, each one of:
+${CONVEY}
+- A panel's convey items must be things ONE camera can show together. A low angle on one person and a high angle on another, or two faces turned away from each other, are two panels, not one. One strong thing is better than three weak ones.
+
+"layout" says where everything stands in the scene (metres; x across, z along; y up).
+
+${n > 1 ? vocabulary() : ''}`;
+
+export interface Panel {
+  /** the instant (absent: the scene's own instant, a one-panel storyboard) */
+  beat?: Beat;
+  /** what it must make the viewer understand (absent: composition alone) */
+  intent?: ShotIntent;
+}
+
+/** Keeps what refers to the scene's ids; returns the notes on what was dropped. */
+export function checkIntent(raw: unknown, scene: Scene): { intent: ShotIntent; notes: string[] } {
+  const ids = new Set([...scene.actors.map((a) => a.id), ...scene.structures.map((s) => s.id), ...scene.effects.map((e) => e.id)]);
+  const actors = new Set(scene.actors.map((a) => a.id));
+  const notes: string[] = [];
+  const r = (raw ?? {}) as { subject?: unknown; why?: unknown; convey?: unknown };
+  const subject = typeof r.subject === 'string' && ids.has(r.subject) ? r.subject : scene.moment.focus;
+  if (subject !== r.subject) notes.push(`subject "${String(r.subject)}" is not in the scene: the moment's focus "${subject}" instead`);
+  const convey: Convey[] = [];
+  for (const c of Array.isArray(r.convey) ? r.convey : []) {
+    const x = c as Record<string, unknown>;
+    const who = x.who;
+    const ok = KINDS.has(String(x.what)) && (Array.isArray(who) ? who.every((w) => ids.has(String(w))) : actors.has(String(who)))
+      && (x.what !== 'sees' || x.target === 'gaze' || ids.has(String(x.target)))
+      && (x.what !== 'scale' || ids.has(String(x.against)))
+      && (x.what !== 'power' || x.over === undefined || x.over === null || ids.has(String(x.over)));
+    if (!ok) { notes.push(`dropped ${JSON.stringify(c)}: unknown kind or id`); continue; }
+    if (convey.length === MAX_CONVEY) { notes.push(`dropped ${JSON.stringify(c)}: more than ${MAX_CONVEY} things for one panel`); continue; }
+    if (x.what === 'power' && (x.over === null || x.over === undefined)) delete x.over;
+    convey.push(x as unknown as Convey);
+  }
+  return { intent: { subject, convey, ...(typeof r.why === 'string' ? { why: r.why } : {}) }, notes };
+}
+const KINDS = new Set(['face', 'sees', 'power', 'vulnerable', 'alone', 'together', 'scale']);
+
+/** The story as n panels on the scene's set (n = 1: the scene's own instant and its intent). */
+export async function storyboard(text: string, scene: Scene, chat: Chat, n = 1): Promise<{ panels: Panel[]; notes: string[] }> {
+  const messages: ChatMsg[] = [
+    { role: 'system', content: STORYBOARD_PROMPT(n) },
+    { role: 'user', content: `STORY:\n${text}\n\nSCENE:\n${JSON.stringify(scene)}\n\nLAYOUT:\n${JSON.stringify(layoutOf(scene))}` },
+  ];
+  let last = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const answer = await chat(messages, { temperature: 0.3 });
+    try {
+      return read(answer, scene, n);
+    } catch (e) {
+      last = (e as Error).message;
+      messages.push({ role: 'assistant', content: answer }, { role: 'user', content: `The program could not use this: ${last}. Answer again with the corrected JSON only.` });
+    }
+  }
+  throw new Error(`storyboard failed: ${last}`);
+}
+
+/** The model's answer as panels: each beat solved on the scene, each intent checked against its beat. */
+export function read(answer: string, scene: Scene, n: number): { panels: Panel[]; notes: string[] } {
+  const s = answer.indexOf('{'), e = answer.lastIndexOf('}');
+  if (s < 0 || e <= s) throw new Error('no JSON object in the answer');
+  const raw = JSON.parse(answer.slice(s, e + 1)) as { panels?: unknown };
+  const list = Array.isArray(raw.panels) ? raw.panels as Record<string, unknown>[] : [];
+  if (list.length !== n) throw new Error(`${list.length} panels, not ${n}`);
+  const notes: string[] = [];
+  const panels = list.map((p, i): Panel => {
+    let beat: Beat | undefined, at = scene;
+    if (n > 1) {
+      beat = noNulls({ what: String(p.what ?? `panel ${i + 1}`), actors: Array.isArray(p.actors) ? p.actors : [], effects: Array.isArray(p.effects) ? p.effects : [] }) as Beat;
+      // a beat cannot invent an effect: one the scene does not have is dropped
+      const known = new Set(scene.effects.map((x) => x.id));
+      for (const id of beat.effects ?? []) if (!known.has(id)) notes.push(`panel ${i + 1}: dropped effect "${id}": not in the scene`);
+      beat.effects = (beat.effects ?? []).filter((id) => known.has(id));
+      at = atBeat(scene, beat);
+      realize(at);
+    }
+    const got = checkIntent(p.intent, at);
+    notes.push(...got.notes.map((x) => `panel ${i + 1}: ${x}`));
+    return { ...(beat ? { beat } : {}), intent: got.intent };
+  });
+  return { panels, notes };
+}
+
+function noNulls<T>(x: T): T {
+  const strip = (o: unknown): unknown => {
+    if (Array.isArray(o)) return o.map(strip);
+    if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== '').map(([k, v]) => [k, strip(v)]));
+    return o;
+  };
+  return strip(x) as T;
+}

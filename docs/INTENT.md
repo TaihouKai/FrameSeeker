@@ -91,7 +91,14 @@ intents, the search's best camera:
   meant: the reference frames carry a rough intent label from a fixed rule. With an intent layer, the question becomes
   *given this intent, which device did the director use?*, and the reference frames need their intent annotated from
   the story around them (the shots before and after), not from the frame alone.
-- **Sequences.** Many intents live across cuts (*intensify*: each shot closer); FrameSeeker plans one shot at a time.
+- **Sequences.** A story can now be drawn as N panels (`--panels N`, a strip): the scene is the set and the cast, each
+  panel one instant on it (a *beat*: who is there, where, how; `atBeat` in `src/scene/`) with its own intent, searched
+  on its own. The set does not move between panels: structures are pinned where the scene puts them, a room is fixed
+  at the origin, and the set dressing is laid out once. This came from testing: asked for one shot, the LLM gave it
+  three things to convey that no single camera can show (a low angle on the one who scolds and a high angle on the one
+  scolded; two faces turned away from each other), and the search dropped the hardest one, the face, every time. As
+  panels, each carries one or two. Still open: intents that live *across* cuts (*intensify*: each shot closer;
+  keeping the 180° line), which would score the strip as a whole rather than each panel on its own.
 - **Feel and light.** Emotional tone (tension, warmth) is an intent; light is mostly how it is served. Two kinds:
   - *Mood light* (low key or high key, warm or cold, contrast) is set relative to the camera and the subject (the
     classic three-point setup: key about 45° to one side of the lens, back light behind the subject facing it). So it
@@ -118,7 +125,11 @@ intents, the search's best camera:
   does move the face's weight, but at the scale of a passage and as a minority choice: even then most shots show the
   face. A per-shot rule asked of the LLM is the wrong grain; the passage's intent is the right one, and the scorer
   stays unchanged until that is fitted and tested on films it was not fitted on.
-- **Extraction** (`extractIntent`) is written and checked against the scene's ids, but not yet run on stories.
+- **Extraction** (`storyboard` in `src/intent/`): the LLM writes each panel's beat and intent, checked against the
+  scene's ids and solved; at most two things per panel. First runs on six short stories: a farewell, a scolding, a
+  station, a giant statue, a rooftop chase, a duel. Panels with one or two compatible things reach 0.8–0.98; the
+  pairing the LLM still makes most often, a face together with a two-shot of people metres apart, cannot be met by one
+  camera and scores low.
 
 ## Pointing: who the eye goes to
 

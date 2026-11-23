@@ -174,6 +174,8 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   // H4 the camera stands in the open
   if (cam.pos[1] < w.groundY + 0.2) return reject('camera below ground');
   if (w.prims.some((p) => inside(p, cam.pos, 0.3))) return reject('camera inside geometry');
+  // indoors the camera stays in the room (not outside looking in through a window)
+  if (w.room && (Math.abs(cam.pos[0]) > w.room.hx - 0.15 || Math.abs(cam.pos[2]) > w.room.hz - 0.15 || cam.pos[1] > w.groundY + w.room.h - 0.1)) return reject('camera outside the room');
 
   // H1 the focus is in frame and seen
   const focusSkip = new Set([ctx.focus.id]);

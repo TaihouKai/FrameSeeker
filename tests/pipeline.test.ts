@@ -12,8 +12,8 @@ describe('pipeline: scene → camera → generate', () => {
   it('PL1 a scene file gives shots with their maps; an unavailable renderer is noted, nothing crashes', async () => {
     const off: Generator = { name: 'off', generate: async () => { throw new GeneratorUnavailable('off: not configured'); } };
     const r = await runScene(scene, { k: 2, search: { n: 600, refine: 5, iters: 10 }, generator: off });
-    expect(r.shots.length).toBeGreaterThan(0);
-    for (const s of r.shots) {
+    expect(r.panels[0].shots.length).toBeGreaterThan(0);
+    for (const s of r.panels[0].shots) {
       expect(s.shot.total).toBeGreaterThan(0);
       expect(s.maps.preview.pixels.length).toBe(s.maps.preview.width * s.maps.preview.height * 3);
       expect(s.maps.depth.channels).toBe(1);
@@ -29,8 +29,8 @@ describe('pipeline: scene → camera → generate', () => {
     expect(got!.scene).toBe(scene);
     expect(got!.maps.people.map((p) => p.id).sort()).toEqual(scene.actors.map((a) => a.id).sort());
     expect(got!.width).toBeGreaterThan(got!.height * 0.5);
-    expect(r.shots[0].image).not.toBeNull();
-    expect(r.shots[0].meta).toEqual({ seen: true });
+    expect(r.panels[0].shots[0].image).not.toBeNull();
+    expect(r.panels[0].shots[0].meta).toEqual({ seen: true });
   });
 
   it('PL6 a colour hint only for shots with an effect in frame', () => {

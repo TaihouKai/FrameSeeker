@@ -244,7 +244,7 @@ camera's `rate` is passed in as a function by the pipeline, so the dependency st
 `vec.ts` 3D vectors · `geom.ts` primitives (box, capsule / cylinder, sphere; glass) and ray casting · `skeleton.ts`
 the OpenPose body-18 format every module speaks · `image.ts`, `png.ts` raw images and PNG.
 
-**`scene/`** — phases 1–3. Public: `buildScenes`, `realize`, the scene and world types, the pose library.
+**`scene/`** — phases 1–3. Public: `buildScenes` (or `extractScene` then `stageScene`), `realize`, `atBeat` (one instant of a sequence on the same set), the scene and world types, the pose library.
 `types.ts` the scene JSON · `llm/` extraction (`extract.ts`), staging proposals (`stage.ts`), the vocabulary shown
 to the LLM, written from the code (`vocab.ts`), a chat client (`chat.ts`) · `judge.ts` keeps a staging operation
 only where it measurably helps · `solve.ts` relations → exact geometry · `poses.ts` the pose library ·
@@ -255,7 +255,7 @@ geometry. `camera.ts` the pinhole camera and projection · `search.ts` sampling 
 constraints and score terms · `composition2d.ts` picture-plane composition (Liu et al. 2010) · `view.ts` what a camera
 shows, and preferences from outside · `maps.ts` the structure maps · `render.ts` the gray-box preview for people.
 
-**`intent/`** — what a shot is for. Public: `preferences`, `applyIntent`, `extractIntent`, the vocabulary.
+**`intent/`** — what a shot is for. Public: `preferences`, `applyIntent`, `storyboard` (each panel's beat and intent from the story), the vocabulary.
 `types.ts` the intents · `devices.ts` the ways films convey each, as preferences, with sources · `extract.ts` the
 intent from a story (LLM, checked against the scene).
 
@@ -411,11 +411,12 @@ npm install
 npm test                                              # includes the architecture check
 npm run frameseeker -- scenes/classroom-talk.json     # phases 3–5 from a scene file → out/run-classroom-talk/
 npm run frameseeker -- stories/rooftop-chase.txt      # phases 1–5 from a story (needs VENICE_API_KEY)
+npm run frameseeker -- stories/farewell.txt --panels 4  # the story as a strip of 4 panels → strip.png
 ```
 
 | Command | Phases | For |
 |---|---|---|
-| `npm run frameseeker -- <story.txt \| scene.json>` | 1–5 (3–5 from a scene file); 6 with `--generator` | the whole pipeline |
+| `npm run frameseeker -- <story.txt \| scene.json> [--panels N]` | 1–5 (3–5 from a scene file); 6 with `--generator` | the whole pipeline; with `--panels N` a story is drawn as N pictures, each one instant with its own intent |
 | `npm run stage -- <story.txt>` | 1–3 | inspecting extraction and staging |
 | `npm run shot -- <scene.json> [--intent intent.json]` | 3–5 | inspecting the camera search: previews, maps, every score term (and the intent's devices; examples in `intents/`) |
 | `npm run gallery -- <scene.json ...>` | 3–5 | the gallery above (`docs/gallery/`) |

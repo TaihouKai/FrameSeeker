@@ -7,7 +7,7 @@ import type { ShotIntent } from './types.ts';
 
 export type { Convey, ConveyKind, ShotIntent } from './types.ts';
 export { preferences, DEVICES, DEFAULT_WEIGHTS, label, type Device, type IntentWeights } from './devices.ts';
-export { extractIntent, checkIntent, INTENT_PROMPT } from './extract.ts';
+export { storyboard, checkIntent, read as readStoryboard, STORYBOARD_PROMPT, MAX_CONVEY, type Panel } from './storyboard.ts';
 
 /** The ids the intent needs in frame: its subject and what each thing to convey involves. */
 export function needs(intent: ShotIntent): string[] {

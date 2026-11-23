@@ -1,29 +1,33 @@
 // Phase 3, set dressing by the kind of place, so the camera search has something to frame with.
 // Deterministic (seeded by the scene); nothing is put where it would block the action, the focus or the payoff.
+// For one beat of a sequence, the layout comes from the set (the whole scene) so it is the same in every panel; only
+// what would stand in this instant's way is left out.
 import { add, hash, lerp, mul, norm, rng, sub, yawTo, type V3 } from '../shared/vec.ts';
 import { clear, inside, type Prim, type World } from '../shared/geom.ts';
 import { FLOOR_H, type Solved } from './solve.ts';
+import { roomOf } from './types.ts';
 
-export function dress(s: Solved): World {
-  const rand = rng(hash(JSON.stringify(s.scene)));
+export function dress(s: Solved, set: Solved = s): World {
+  const rand = rng(hash(JSON.stringify(set.scene)));
   const keep: Prim[] = [];
-  const kind = s.scene.place.kind;
-  const actors = [...s.actors.values()];
-  const centre: V3 = actors.length ? mul(actors.reduce((x, a) => add(x, a.pos), [0, 0, 0] as V3), 1 / actors.length) : [0, 0, 0];
+  const kind = set.scene.place.kind;
+  const room = roomOf(set.scene.place);
+  const actors = [...set.actors.values()];
+  const centre: V3 = room ? [0, 0, 0] : actors.length ? mul(actors.reduce((x, a) => add(x, a.pos), [0, 0, 0] as V3), 1 / actors.length) : [0, 0, 0];
   // the street runs under a gantry or bridge (across its span); else along the longest line effect, else between the
   // first two actors, else +Z
-  const span = [...s.structures.values()].find((x) => x.kind === 'truss' || x.kind === 'bridge');
-  const longest = [...s.lines.values()].sort((a, b) => len2(sub(b.b, b.a)) - len2(sub(a.b, a.a)))[0];
-  const axis: V3 = span ? span.front : longest ? flat(sub(longest.b, longest.a)) : actors.length > 1 ? flat(sub(actors[1].pos, actors[0].pos)) : [0, 0, 1];
+  const span = [...set.structures.values()].find((x) => x.kind === 'truss' || x.kind === 'bridge');
+  const longest = [...set.lines.values()].sort((a, b) => len2(sub(b.b, b.a)) - len2(sub(a.b, a.a)))[0];
+  const axis: V3 = room ? [0, 0, 1] : span ? span.front : longest ? flat(sub(longest.b, longest.a)) : actors.length > 1 ? flat(sub(actors[1].pos, actors[0].pos)) : [0, 0, 1];
   const across: V3 = [-axis[2], 0, axis[0]];
   const yawAlong = yawTo([0, 0, 0], axis);
   const box = (c: V3, half: V3, yaw: number, thin = false, label?: string): Prim => ({ kind: 'box', c, half, yaw, owner: `dress${keep.length}`, role: 'dressing', thin, ...(label ? { label } : {}) });
   // always kept (a room's floor: the actors stand on it)
   const base: Prim[] = [];
-  const scale = Math.max(40, ...[...s.lines.values()].map((l) => Math.sqrt(len2(sub(l.b, l.a)))), ...[...s.structures.values()].map((x) => Math.hypot(x.pos[0] - centre[0], x.pos[2] - centre[2]) + 20));
+  const scale = Math.max(40, ...[...set.lines.values()].map((l) => Math.sqrt(len2(sub(l.b, l.a)))), ...[...set.structures.values()].map((x) => Math.hypot(x.pos[0] - centre[0], x.pos[2] - centre[2]) + 20));
 
   if (kind === 'street' || kind === 'plaza' || kind === 'bridge') {
-    const width = s.scene.place.width ?? (kind === 'plaza' ? 60 : 20);
+    const width = set.scene.place.width ?? (kind === 'plaza' ? 60 : 20);
     for (const sideSign of [-1, 1]) {
       // buildings in a row along each side
       let u = -scale - 30;
@@ -61,8 +65,7 @@ export function dress(s: Solved): World {
     keep.push({ kind: 'capsule', a: [mast[0], 0, mast[2]], b: [mast[0], 12, mast[2]], r: 0.15, owner: `dress${keep.length}`, role: 'dressing', thin: true });
     for (let k = 0; k < 4; k++) { const c = add(centre, add(mul(axis, (rand() - 0.5) * 2 * (r - 3)), mul(across, (rand() - 0.5) * 2 * (r - 3)))); keep.push(box([c[0], 0.6, c[2]], [0.9, 0.6, 0.6], yawAlong)); }
   } else if (kind === 'room' || kind === 'classroom' || kind === 'corridor') {
-    const pl = s.scene.place;
-    const hx = (pl.width ?? (kind === 'corridor' ? 3.2 : 9)) / 2, hz = (pl.length ?? (kind === 'corridor' ? 30 : 7)) / 2, h = pl.height ?? 3;
+    const { hx, hz, h } = room!;
     const c = centre;
     // the shell (walls, ceiling, floor) is always kept: it is the place itself, and the rough overlap test below
     // took the whole ceiling for standing in a tank
@@ -99,17 +102,18 @@ export function dress(s: Solved): World {
     }
   }
 
-  // nothing may stand in a scene thing, nor block a line, the focus or the payoff from the actors' side
+  // nothing may stand in a scene thing, nor block a line, the focus or the payoff from the actors' side (this instant's)
   const scene = s.world;
-  const keyPoints: V3[] = [...actors.map((a) => a.head), ...[...s.lines.values()].flatMap((l) => [l.a, lerp(l.a, l.b, 0.5), l.b])];
+  const here = [...s.actors.values()];
+  const keyPoints: V3[] = [...here.map((a) => a.head), ...[...s.lines.values()].flatMap((l) => [l.a, lerp(l.a, l.b, 0.5), l.b])];
   const ok = (p: Prim) => {
     if (scene.prims.some((q) => q.role !== 'actor' && overlaps(p, q))) return false;
-    if (actors.some((a) => inside(p, a.pos, 1) || inside(p, a.head, 1))) return false;
+    if (here.some((a) => inside(p, a.pos, 1) || inside(p, a.head, 1))) return false;
     for (const l of s.lines.values()) if (!clear({ groundY: -1e9, prims: [p] }, l.a, lerp(l.a, l.b, 0.98))) return false;
     if (keyPoints.length > 1 && !clear({ groundY: -1e9, prims: [p] }, keyPoints[0], keyPoints[keyPoints.length - 1])) return false;
     return true;
   };
-  return { groundY: 0, prims: [...scene.prims, ...keep.filter(ok), ...base] };
+  return { groundY: 0, prims: [...scene.prims, ...keep.filter(ok), ...base], ...(room ? { room } : {}) };
 }
 
 const len2 = (d: V3) => d[0] * d[0] + d[1] * d[1] + d[2] * d[2];

@@ -16,7 +16,8 @@ export type Prim =
   | (Base & { kind: 'capsule'; a: V3; b: V3; r: number; flat?: boolean })
   | (Base & { kind: 'sphere'; c: V3; r: number });
 
-export interface World { prims: Prim[]; groundY: number }
+/** room: indoors, the room the camera stays in (centred at the origin, x within ±hx, z within ±hz, under the ceiling h) */
+export interface World { prims: Prim[]; groundY: number; room?: { hx: number; hz: number; h: number } }
 export interface Hit { t: number; prim: Prim | null; normal: V3 }
 
 const EPS = 1e-6;

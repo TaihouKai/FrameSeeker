@@ -97,7 +97,7 @@ export function preview(w: World3D, cam: Cam, scale = 0.5): Image {
 }
 
 /** The world's best shot as the scene module's staging judge needs it. */
-export function rate(w: World3D, opts: SearchOpts = { seed: 1, k: 1 }): Rating {
+export function rate(w: World3D, opts: SearchOpts & { prefer?: Preference[] } = { seed: 1, k: 1 }): Rating {
   const best = shoot(w, opts).shots[0];
   return best ? { total: best.total, terms: Object.fromEntries(TERMS.filter((t) => best.terms[t] !== undefined).map((t) => [t, best.terms[t]!])) } : { total: 0, terms: {} };
 }

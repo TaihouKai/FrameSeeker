@@ -4,6 +4,15 @@ export const PLACE_KINDS = ['street', 'plaza', 'bridge', 'rooftop', 'room', 'cla
 export type PlaceKind = typeof PLACE_KINDS[number];
 /** places with walls and a ceiling (seen past the walls: through a window) */
 export const INDOOR_KINDS: ReadonlySet<PlaceKind> = new Set(['room', 'classroom', 'corridor']);
+/**
+ * Indoors, the room: centred at the origin, x across (from -hx to hx: the place's width), z along (from -hz to hz: its
+ * length), the ceiling at h. Fixed by the place alone, so the scene's coordinates mean the same in every beat.
+ */
+export function roomOf(place: Scene['place']): { hx: number; hz: number; h: number } | null {
+  if (!INDOOR_KINDS.has(place.kind)) return null;
+  const corridor = place.kind === 'corridor';
+  return { hx: (place.width ?? (corridor ? 3.2 : 9)) / 2, hz: (place.length ?? (corridor ? 30 : 7)) / 2, h: place.height ?? 3 };
+}
 export type Intent = 'scale' | 'action' | 'emotion' | 'reveal';
 
 export interface Scene {
@@ -54,8 +63,11 @@ export interface Structure {
   /** see-through (a glass tank, a window pane): who stands inside or behind it stays visible */
   glass?: boolean;
   place: Placement;
-  /** which way its front (+Z side) faces: an id, else towards whoever places it ("seen_from"/"from"), else the world's +Z */
-  facing?: string;
+  /**
+   * which way its front (+Z side) faces: an id, or a world yaw in degrees (as an actor's); else towards whoever places
+   * it ("seen_from"/"from"), else the world's +Z
+   */
+  facing?: string | number;
   prompt: string[];
 }
 
@@ -102,6 +114,21 @@ export interface Moment {
   /** ids that may leave the frame or be hidden */
   may_hide?: string[];
 }
+
+/**
+ * One instant of a sequence on the same set (a panel of a strip): who is there and how. The place and the structures
+ * stay where the scene puts them; the people present are the beat's, each taking the scene's values for what the
+ * beat leaves out. The other people are not there.
+ */
+export interface Beat {
+  /** what happens at this instant, in the story's words */
+  what: string;
+  /** the people present (at least one) */
+  actors: BeatActor[];
+  /** the scene's effects that happen at this instant (default: none) */
+  effects?: string[];
+}
+export type BeatActor = { id: string; expression?: string[] } & Partial<Pick<Actor, 'pose' | 'place' | 'facing' | 'looks_at' | 'approaches' | 'speaking' | 'aim'>>;
 
 export const isLine = (e: Effect): e is Extract<Effect, { kind: LineKind }> => ['beam', 'lightning', 'projectile', 'slash'].includes(e.kind);
 export const isVolume = (e: Effect): e is Extract<Effect, { kind: VolumeKind }> => ['explosion', 'shockwave', 'aura', 'barrier'].includes(e.kind);

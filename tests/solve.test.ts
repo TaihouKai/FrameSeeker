@@ -76,7 +76,7 @@ describe('solver', () => {
   });
   it('SV-point story cues: looks, faces, approaches, aims, line effects, speaking; the focus is checked against them', () => {
     const base = scene('classroom-talk');
-    const actor = (id: string, extra: object = {}) => ({ ...base.actors[0], id, place: { at: [Number(id.charCodeAt(0) - 97) * 1.5, 0] as [number, number] }, facing: undefined, looks_at: undefined, ...extra });
+    const actor = (id: string, extra: object = {}) => ({ ...base.actors[0], id, place: { at: [Number(id.charCodeAt(0) - 97) * 1.5 - 3, 0] as [number, number] }, facing: undefined, looks_at: undefined, ...extra });
     const s: Scene = {
       ...base,
       actors: [actor('a'), actor('b', { looks_at: 'd.head' }), actor('c', { facing: 'd' }), actor('d', { looks_at: 'a' }), actor('e', { pose: 'point', aim: 'd.chest' })],

@@ -4,7 +4,7 @@ import { POSES, mirror, toWorld, type Local } from './poses.ts';
 import { HEAD, KP } from '../shared/skeleton.ts';
 import { cast, type Prim, type World } from '../shared/geom.ts';
 import { checkFocus } from './attention.ts';
-import { isDamage, isLine, isVolume, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './types.ts';
+import { isDamage, isLine, isVolume, roomOf, type Actor, type Effect, type Placement, type Scene, type Structure, type Toward } from './types.ts';
 
 export const FLOOR_H = 3.5;
 
@@ -110,9 +110,9 @@ export function solve(scene: Scene): Solved {
     if (!s) throw new Error(`"${id}" is not a structure`);
     const at = position(id);
     const p = s.place;
-    const lookId = s.facing ?? ('seen_from' in p ? p.seen_from : 'from' in p ? p.from : null);
+    const lookId = typeof s.facing === 'string' ? s.facing : s.facing === undefined ? ('seen_from' in p ? p.seen_from : 'from' in p ? p.from : null) : null;
     // no facing given: the world's +Z (deterministic; a structure others stand on cannot wait for them)
-    const yaw = lookId ? yawTo(at, position(lookId)) : 0;
+    const yaw = typeof s.facing === 'number' ? s.facing * Math.PI / 180 : lookId ? yawTo(at, position(lookId)) : 0;
     const solved = buildStructure(s, at, yaw);
     structures.set(id, solved);
     return solved;
@@ -120,6 +120,18 @@ export function solve(scene: Scene): Solved {
   for (const a of scene.actors) position(a.id);
   for (const s of scene.structures) structure(s.id);
   for (const a of scene.actors) if (a.approaches !== undefined) position(a.approaches);
+  // nobody pressed against the side of something taller than a desk (the body would be hidden from most cameras):
+  // the scene's numbers are rough, so the solver moves them out to a step's room, with a note
+  for (const a of scene.actors) {
+    const at = pos.get(a.id)!;
+    for (const st of structures.values()) for (const p of st.prims) {
+      if (p.kind !== 'box' || p.glass || p.thin || p.c[1] + p.half[1] < 1.2 || at[1] > p.c[1] + p.half[1] - 0.05) continue;
+      const out = pushOut(p, at, 0.3);
+      if (!out) continue;
+      notes.push(`${a.id} stood against "${st.id}": moved ${dist(out, at).toFixed(2)} m out`);
+      at[0] = out[0]; at[2] = out[2];
+    }
+  }
 
   // --- actors: facing, pose, aim ---
   const actors = new Map<string, SolvedActor>();
@@ -288,10 +300,17 @@ export function solve(scene: Scene): Solved {
   // --- checks ---
   // the focus against whom the others point at (a note, not an error)
   notes.push(...checkFocus(scene));
+  // indoors, everyone and everything is in the room (a door or a window may sit in a wall)
+  const room = roomOf(scene.place);
+  if (room) {
+    const where = `the room runs x ${-room.hx}..${room.hx}, z ${-room.hz}..${room.hz} (centred at [0, 0])`;
+    for (const a of actors.values()) if (Math.abs(a.pos[0]) > room.hx - 0.2 || Math.abs(a.pos[2]) > room.hz - 0.2) throw new Error(`actor "${a.id}" at [${a.pos[0].toFixed(1)}, ${a.pos[2].toFixed(1)}] is outside the room: ${where}`);
+    for (const s of structures.values()) if (Math.abs(s.box.c[0]) > room.hx + 0.3 || Math.abs(s.box.c[2]) > room.hz + 0.3) throw new Error(`structure "${s.id}" at [${s.box.c[0].toFixed(1)}, ${s.box.c[2].toFixed(1)}] is outside the room: ${where}`);
+  }
   for (const a of actors.values()) {
     const feet = lerp(a.points[KP.rAnkle], a.points[KP.lAnkle], 0.5);
     // (a glass one is there to hold someone: a tank, a capsule)
-    for (const s of structures.values()) if (s.prims.some((p) => p.kind === 'box' && !p.glass && insideBox(p, add(feet, [0, 0.3, 0])))) throw new Error(`actor "${a.id}" stands inside structure "${s.id}"`);
+    for (const s of structures.values()) if (s.prims.some((p) => p.kind === 'box' && !p.glass && insideBox(p, add(feet, [0, 0.3, 0])))) throw new Error(`actor "${a.id}" at [${a.pos[0].toFixed(1)}, ${a.pos[2].toFixed(1)}] stands inside structure "${s.id}" (centre [${s.box.c[0].toFixed(1)}, ${s.box.c[2].toFixed(1)}], ${(2 * s.box.half[0]).toFixed(1)} m across its front, ${(2 * s.box.half[2]).toFixed(1)} m deep, its front facing ${(s.yaw * 180 / Math.PI).toFixed(0)}°): place them outside it`);
   }
 
   const world: World = { groundY: 0, prims: [...[...actors.values()].flatMap((a) => a.prims), ...[...structures.values()].flatMap((s) => s.prims)] };
@@ -299,6 +318,20 @@ export function solve(scene: Scene): Solved {
 }
 
 function flat(d: V3): V3 { return norm([d[0], 0, d[2]]); }
+
+/** A point within `gap` of a box's side (and not over it), moved out horizontally to `gap` from it; else null. */
+function pushOut(p: Extract<Prim, { kind: 'box' }>, q: V3, gap: number): V3 | null {
+  const c = Math.cos(-p.yaw), s = Math.sin(-p.yaw);
+  const dx = q[0] - p.c[0], dz = q[2] - p.c[2];
+  const lx = dx * c + dz * s, lz = -dx * s + dz * c;
+  const ex = p.half[0] + gap - Math.abs(lx), ez = p.half[2] + gap - Math.abs(lz);
+  if (ex <= 0 || ez <= 0) return null;
+  // inside the box itself: not a nudge (the check below reports it)
+  if (Math.abs(lx) < p.half[0] && Math.abs(lz) < p.half[2]) return null;
+  const nx = ex < ez ? (lx < 0 ? -1 : 1) * (p.half[0] + gap) : lx, nz = ex < ez ? lz : (lz < 0 ? -1 : 1) * (p.half[2] + gap);
+  const cb = Math.cos(p.yaw), sb = Math.sin(p.yaw);
+  return [p.c[0] + nx * cb + nz * sb, q[1], p.c[2] - nx * sb + nz * cb];
+}
 
 function insideBox(p: Extract<Prim, { kind: 'box' }>, q: V3): boolean {
   const c = Math.cos(-p.yaw), s = Math.sin(-p.yaw);
@@ -345,8 +378,11 @@ function buildStructure(s: Structure, at: V3, yaw: number): SolvedStructure {
   let height: number;
   switch (s.kind) {
     case 'building': case 'tower': {
-      height = sz.height ?? (sz.floors ?? (s.kind === 'tower' ? 40 : 10)) * FLOOR_H;
-      const w = sz.width ?? (s.kind === 'tower' ? 18 : 24), d = sz.depth ?? (s.kind === 'tower' ? 18 : 20);
+      const floors = sz.floors ?? (s.kind === 'tower' ? 40 : 10);
+      height = sz.height ?? floors * FLOOR_H;
+      // a house of one or two floors is not a city block
+      const small = s.kind === 'building' && floors <= 2;
+      const w = sz.width ?? (s.kind === 'tower' ? 18 : small ? 8 : 24), d = sz.depth ?? (s.kind === 'tower' ? 18 : small ? 8 : 20);
       main = box(rot(0, height / 2, 0), [w / 2, height / 2, d / 2]) as typeof main;
       prims.push(main);
       break;
@@ -359,7 +395,8 @@ function buildStructure(s: Structure, at: V3, yaw: number): SolvedStructure {
       break;
     }
     case 'wall': height = sz.height ?? 3; main = box(rot(0, height / 2, 0), [(sz.width ?? 10) / 2, height / 2, (sz.depth ?? 0.4) / 2]) as typeof main; prims.push(main); break;
-    case 'vehicle': height = 1.5; main = box(rot(0, 0.75, 0), [0.95, 0.75, 2.25]) as typeof main; prims.push(main); break;
+    // a car unless the size says otherwise (a bus, a train: its length is its depth)
+    case 'vehicle': height = sz.height ?? 1.5; main = box(rot(0, height / 2, 0), [(sz.width ?? 1.9) / 2, height / 2, (sz.depth ?? 4.5) / 2]) as typeof main; prims.push(main); break;
     case 'crate': height = sz.height ?? 1; main = box(rot(0, height / 2, 0), [height / 2, height / 2, height / 2]) as typeof main; prims.push(main); break;
     case 'rock': height = sz.height ?? 1.5; main = box(rot(0, height / 2, 0), [height * 0.7, height / 2, height * 0.6]) as typeof main; prims.push(main); break;
     case 'pillar': height = sz.height ?? 6; main = box(rot(0, height / 2, 0), [0.4, height / 2, 0.4], true) as typeof main; prims.push(main); break;
