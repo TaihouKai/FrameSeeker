@@ -54,7 +54,7 @@ preferences. Lighting or vanishing lines would be new devices, and new measureme
 
 | Intent | Device(s) | Source |
 |---|---|---|
-| `face(who)` — read their face | face within 30–75° of the camera, medium shot or closer | Mascelli: the close-up for reaction |
+| `face(who)` — read their face | face within 30–75° of the camera (in three dimensions: a bowed head seen from in front and below counts), medium shot or closer | Mascelli: the close-up for reaction |
 | `sees(who, target)` — what they look at | (a) both in one frame (over the shoulder, two-shot); (b) point of view: the camera at their eyes | Mascelli; Arijon: external reverse |
 | `power(who, over?)` — they hold power | low angle: camera below their eyes, looking up | Mascelli: camera angles; Jhala & Young |
 | `vulnerable(who)` — small, weak, overwhelmed | high angle: camera above, looking down | Mascelli: camera angles |

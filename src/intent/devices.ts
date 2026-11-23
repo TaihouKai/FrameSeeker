@@ -23,7 +23,7 @@ function devicesFor(c: Convey): Device[] {
   switch (c.what) {
     case 'face': return [{
       name: 'face to the camera, medium shot or closer', source: 'Mascelli: the close-up for reaction',
-      score: (v) => { const a = actor(v, c.who); return a ? head(a) * ramp(a.faceAngle, 75, 30) * ramp(a.scale, 0.9, 2.1) : 0; },
+      score: (v) => { const a = actor(v, c.who); return a ? head(a) * ramp(a.faceTo, 75, 30) * ramp(a.scale, 0.9, 2.1) : 0; },
     }];
     case 'sees': {
       const target = (v: View): { inFrame: number; seen: number } => {

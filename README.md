@@ -247,7 +247,7 @@ the OpenPose body-18 format every module speaks · `image.ts`, `png.ts` raw imag
 **`scene/`** — phases 1–3. Public: `buildScenes` (or `extractScene` then `stageScene`), `realize`, `atBeat` (one instant of a sequence on the same set), the scene and world types, the pose library.
 `types.ts` the scene JSON · `llm/` extraction (`extract.ts`), staging proposals (`stage.ts`), the vocabulary shown
 to the LLM, written from the code (`vocab.ts`), a chat client (`chat.ts`) · `judge.ts` keeps a staging operation
-only where it measurably helps · `solve.ts` relations → exact geometry · `poses.ts` the pose library ·
+only where it measurably helps · `solve.ts` relations → exact geometry · `poses.ts` the pose library (114 poses: standing gestures, with someone, fighting, moving, sitting, kneeling, lying; most built from joint directions) · `parts.ts` body parts for inserts ·
 `dress.ts` dressing by the kind of place (streets of buildings, a room's shell, a classroom's blackboard and desks).
 
 **`camera/`** — phases 4–5. Public: `shoot`, `rate`, `rateCamera`, `scorer`, `measure`, `maps`, `preview`, camera

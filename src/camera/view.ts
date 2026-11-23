@@ -25,6 +25,11 @@ export interface ThingView {
 export interface ActorView extends ThingView {
   /** angle between where the face points and the camera, degrees (0 towards it, 180 the back; 90 lying on the back) */
   faceAngle: number;
+  /**
+   * the same in three dimensions: between where the face points (nose from the head's centre, up and down included)
+   * and the camera. A bowed head is seen from in front and below: faceAngle calls it 90°, this does not.
+   */
+  faceTo: number;
   /** camera height minus the person's eye height, metres (negative: the camera is below their eyes) */
   above: number;
   /** distance from the camera to the head, metres */
@@ -95,7 +100,9 @@ export function measure(w: World3D, cam: Cam, pts = samples(w)): View {
       const hs = project(f, a.head), headSeen = inFrame(hs) && clear(w.world, cam.pos, a.head, t.owners);
       const top = project(f, add(a.head, [0, a.headR, 0])), feet = project(f, lerp(a.points[KP.rAnkle], a.points[KP.lAnkle], 0.5));
       const scale = top && feet ? Math.abs(feet.v - top.v) : 0;
-      actors.set(t.id, { ...tv, faceAngle: faceAngleOf(a, cam), above: cam.pos[1] - eye[1], distance: Math.hypot(...sub(a.head, cam.pos)), gaze, headSeen, scale });
+      const nose = sub(a.points[KP.nose], a.head), toCam = sub(cam.pos, a.head);
+      const faceTo = Math.acos(Math.max(-1, Math.min(1, (nose[0] * toCam[0] + nose[1] * toCam[1] + nose[2] * toCam[2]) / ((Math.hypot(...nose) * Math.hypot(...toCam)) || 1)))) * 180 / Math.PI;
+      actors.set(t.id, { ...tv, faceAngle: faceAngleOf(a, cam), faceTo, above: cam.pos[1] - eye[1], distance: Math.hypot(...sub(a.head, cam.pos)), gaze, headSeen, scale });
     }
   }
   return { cam, pitchDeg: pitch(f) * 180 / Math.PI, height: cam.pos[1] - w.world.groundY, things, actors };
