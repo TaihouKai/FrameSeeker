@@ -48,8 +48,27 @@ const WIDE_SIZE: [number, number, number, number] = [0.015, 0.2, 1.0, 1.6];
  * camera, [[30, 1], [80, 0.44], [140, 0.22]].)
  */
 export const FACE_BINS: [angle: number, score: number][] = [[15, 1], [45, 0.48], [80, 0.42], [120, 0.2], [160, 0.42]];
-export function faceScore(angle: number): number {
-  const b = FACE_BINS;
+/**
+ * How much more often directors show a person from behind while that person grieves, holds back what they feel or
+ * walks away, than in everyday talk in the same episodes: 34 of 117 shots against 19 of 126 (29% against 15%; every
+ * shot of 26 passages from three episodes, the passages chosen from the transcripts before any frame was seen, each
+ * shot labelled blind twice; permutation over passages p 0.005). A minority choice even then.
+ */
+export const BACK_LIFT = (34 / 117) / (19 / 126);
+/** The back bin's share among the reference shots the face table was counted on (140–180°: 15 of 117). */
+const BACK_SHARE = 15 / 117;
+/**
+ * The face table with the back's share multiplied by `lift` (the other bins' shares shrink to keep the total, so
+ * only the back bin's score moves, by √(lift·(1 − d)/(1 − lift·d)), tempered like the table).
+ */
+export function faceBins(lift = 1): [number, number][] {
+  if (lift === 1) return FACE_BINS;
+  const d = Math.min(lift * BACK_SHARE, 0.99);
+  const k = Math.sqrt((d / BACK_SHARE) * (1 - BACK_SHARE) / (1 - d));
+  return FACE_BINS.map(([a, s], i) => [a, i === FACE_BINS.length - 1 ? Math.min(1, s * k) : s]);
+}
+export function faceScore(angle: number, bins: [number, number][] = FACE_BINS): number {
+  const b = bins;
   if (angle <= b[0][0]) return b[0][1];
   if (angle >= b[b.length - 1][0]) return b[b.length - 1][1];
   const i = b.findIndex((x) => x[0] > angle) - 1;
@@ -100,9 +119,12 @@ export interface Ctx {
   must: { id: string; points: V3[] }[];
   /** owners that may block nothing important (the focus itself, the payoff) */
   thin: Prim[];
+  /** the face table for this shot's focus */
+  faceBins: [number, number][];
 }
 
-export function context(solved: Solved, world: World): Ctx {
+/** backLift: the focus's back is shown this many times as often as the face table says (BACK_LIFT; 1: the table). */
+export function context(solved: Solved, world: World, opts: { backLift?: number } = {}): Ctx {
   const m = solved.scene.moment;
   const focus = solved.actors.get(m.focus);
   if (!focus) throw new Error(`moment.focus "${m.focus}" is not an actor`);
@@ -130,7 +152,7 @@ export function context(solved: Solved, world: World): Ctx {
   const mustIds = (m.must_show ?? [m.focus, m.action_line, m.payoff].filter(Boolean) as string[]).filter((id) => id !== m.focus && !(m.may_hide || []).includes(id));
   const must = mustIds.map((id) => ({ id, points: pointsOf(id).points }));
   const thin = world.prims.filter((x) => x.thin || (x.kind === 'capsule' && x.r < 0.3 && x.role !== 'actor'));
-  return { solved, world, intent: m.intent, focus, focusPoints, part, line: lineEff ? { a: lineEff.a, b: lineEff.b } : null, payoff, must, thin };
+  return { solved, world, intent: m.intent, focus, focusPoints, part, line: lineEff ? { a: lineEff.a, b: lineEff.b } : null, payoff, must, thin, faceBins: faceBins(opts.backLift ?? 1) };
 }
 
 function boxSamples(b: { c: V3; half: V3; yaw: number }): V3[] {
@@ -289,7 +311,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   // coarse bins), so the front is preferred but a back is a choice films make (19% of them)
   const toCam = flat(sub(cam.pos, ctx.focus.head)), face = faceDir(ctx.focus);
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
-  terms.face = faceScore(info.face_angle);
+  terms.face = faceScore(info.face_angle, ctx.faceBins);
   terms.tilt = tiltScore(info.pitch);
   // look room / lead room: space in front of where they face (Mascelli: composition)
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));

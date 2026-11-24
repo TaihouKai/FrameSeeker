@@ -7,6 +7,7 @@
 //    draw random cameras from the search's prior, search; for evaluating the scorer itself), TERMS
 //  - preferences from outside (e.g. the intent module's devices): measure (what a camera shows: View), Preference;
 //    shoot / scorer take a list and fold each into the score
+//  - continuity between shots: sideOf, keepSide (the 180° rule), newShot (the 30° rule), as gates
 //  - phase 5: maps, preview
 //  - camera geometry: frame, project, ray, pitch, inFrame, SIZE, FOCALS
 import type { World3D, Rating } from '../scene/index.ts';
@@ -22,8 +23,9 @@ export type { Cam, Aspect, Frame, Projected } from './camera.ts';
 export type { SearchOpts, SearchResult, Candidate } from './search.ts';
 export type { Evaluation, Term } from './score.ts';
 export { SIZE, FOCALS, frame, project, ray, pitch, inFrame } from './camera.ts';
-export { TERMS, INSERT_SIZE } from './score.ts';
+export { TERMS, INSERT_SIZE, BACK_LIFT } from './score.ts';
 export { measure, type View, type ThingView, type ActorView, type Preference } from './view.ts';
+export { sideOf, keepSide, newShot, ON_LINE, NEW_ANGLE, NEW_SIZE } from './continuity.ts';
 
 export interface Shot {
   cam: Cam;
@@ -61,8 +63,8 @@ export interface Scorer {
  * 'thirds' (the rule of thirds alone) or 'liu' (Liu et al. 2010's whole composition score).
  */
 export type Objective = 'full' | 'thirds' | 'liu';
-export function scorer(w: World3D, objective: Objective = 'full', prefer: Preference[] = []): Scorer {
-  const ctx = context(w.solved, w.world);
+export function scorer(w: World3D, objective: Objective = 'full', prefer: Preference[] = [], opts: { backLift?: number } = {}): Scorer {
+  const ctx = context(w.solved, w.world, opts);
   const baseline = objective === 'thirds' ? thirdsOnly : objective === 'liu' ? liuOnly : null;
   const base = baseline ? (cam: Cam) => baseline(evaluate(ctx, cam)) : (cam: Cam) => evaluate(ctx, cam);
   const pts = prefer.length ? samples(w) : [];
@@ -72,17 +74,22 @@ export function scorer(w: World3D, objective: Objective = 'full', prefer: Prefer
     const e = base(cam);
     if (!e.ok) return e;
     const v = measure(w, cam, pts);
-    let sum = Math.log(Math.max(0.02, e.total)), ws = 1;
+    let sum = Math.log(Math.max(0.02, e.total)), ws = 1, gate = 1;
     const prefs: Record<string, number> = {};
-    for (const p of prefer) { const x = Math.max(0, Math.min(1, p.score(v))); prefs[p.name] = x; sum += p.weight * Math.log(Math.max(0.02, x)); ws += p.weight; }
-    return { ...e, total: Math.exp(sum / ws), prefs, info: { ...e.info, composition_total: e.total } };
+    for (const p of prefer) {
+      const x = Math.max(0, Math.min(1, p.score(v)));
+      prefs[p.name] = x;
+      if (p.gate) gate *= Math.max(0.02, x);
+      else { sum += p.weight * Math.log(Math.max(0.02, x)); ws += p.weight; }
+    }
+    return { ...e, total: gate * Math.exp(sum / ws), prefs, info: { ...e.info, composition_total: e.total } };
   };
   return { evaluate: score, random: (rand, aspects) => sampler(ctx, rand, aspects), search: (opts) => search(ctx, opts, score) };
 }
 
 /** Phase 4: the best k cameras that differ from each other (seeded: same world, same shots). */
-export function shoot(w: World3D, opts: SearchOpts & { prefer?: Preference[] } = {}): { shots: Shot[]; sampled: number; accepted: number; rejects: Record<string, number> } {
-  const r = scorer(w, 'full', opts.prefer).search(opts);
+export function shoot(w: World3D, opts: SearchOpts & { prefer?: Preference[]; backLift?: number } = {}): { shots: Shot[]; sampled: number; accepted: number; rejects: Record<string, number> } {
+  const r = scorer(w, 'full', opts.prefer, { backLift: opts.backLift }).search(opts);
   return { shots: r.candidates.map((c) => toShot(c.cam, c.ev)), sampled: r.sampled, accepted: r.accepted, rejects: r.rejects };
 }
 
@@ -97,7 +104,7 @@ export function preview(w: World3D, cam: Cam, scale = 0.5): Image {
 }
 
 /** The world's best shot as the scene module's staging judge needs it. */
-export function rate(w: World3D, opts: SearchOpts & { prefer?: Preference[] } = { seed: 1, k: 1 }): Rating {
+export function rate(w: World3D, opts: SearchOpts & { prefer?: Preference[]; backLift?: number } = { seed: 1, k: 1 }): Rating {
   const best = shoot(w, opts).shots[0];
   return best ? { total: best.total, terms: Object.fromEntries(TERMS.filter((t) => best.terms[t] !== undefined).map((t) => [t, best.terms[t]!])) } : { total: 0, terms: {} };
 }

@@ -63,21 +63,26 @@ One command, a three-sentence story, four pictures (`npm run frameseeker -- stor
 | Panel | The instant (the LLM's beat) | What it must convey (the LLM's intent) | What the camera search found | Score |
 |---|---|---|---|---|
 | 1 | she slips chasing the bus | `scale(her, against: bus)` | a long lens (85 mm) down the street: the bus big, the two of them small | 0.945 |
-| 2 | she tries to get up, in pain | `face(her)`, `vulnerable(her)` | a high angle (29° down) on her bowed face | 0.861 |
+| 2 | she tries to get up, in pain | `face(her)`, `vulnerable(her)` | a high angle (30° down) on her bowed face | 0.859 |
 | 3 | the swollen ankle | `detail(her, right_foot)` | an insert: the camera 24 cm off the ground, her hand on the ankle | 0.986 |
 | 4 | he crouches: "I'll carry you" | `together(him, her)`, `face(him)` | from the ground, looking up at him past her shoulder | 0.797 |
 
 The story is drawn as several pictures because one camera cannot say everything a moment holds: a director cuts
 between a low angle on one person and a high angle on the other. So the set and the cast are written once, and each
 panel is one **beat** on that set (who is present, where, in which pose) with its own **intent**, at most two things
-to convey, searched on its own. Set pieces the staging LLM proposes are kept only if the strip's shots improve as a
-whole. The LLM chose the ankle insert itself. The pictures are the gray box; each panel's subject is red.
+to convey, searched on its own. Before anything is drawn, the camera tries every panel: two things no single camera
+can serve together (a face read up close and the same person small and alone), a thing no camera can show at that
+instant, or the same instant drawn twice go back to the LLM with the numbers. The panels are then cut together: while
+the same two people face each other, the camera keeps to one side of the line between them (the 180° rule), and two
+panels in a row about the same person differ by at least 30° or a shot size, so the cut does not jump (the 30° rule). Set
+pieces the staging LLM proposes are kept only if the strip's shots improve as a whole. The LLM chose the ankle insert
+itself. The pictures are the gray box; each panel's subject is red.
 
 The run saves its storyboard (`storyboard.json`: the set, each panel's beat and intent); given back to the command,
 it replays the strip with no LLM, deterministically. This strip is [`storyboards/sprain.json`](storyboards/sprain.json).
 
 <details>
-<summary><b>A second strip, and what it shows is still weak</b> — a farewell in an empty classroom at sunset</summary>
+<summary><b>A second strip: a farewell, and what the camera check changed</b> — an empty classroom at sunset</summary>
 
 > 放学后的教室只剩下两个人。……「明天我就转学了。」阿健把最后一本书塞进书包……小雪坐在自己的座位上，低着头，手指紧紧攥着裙角，一句话也没说。阿健走到教室门口，停了一下。他没有回头，只是背对着她举起右手，竖了个大拇指：「别哭啊，班长。」然后拉开门走了出去。
 >
@@ -89,14 +94,16 @@ it replays the strip with no LLM, deterministically. This strip is [`storyboards
 
 | Panel | Intent | Score | |
 |---|---|---|---|
-| 1 | `together(Ken, Xue)`, `face(Ken)` | 0.306 | both in frame, but too small for his face to read: they are 3 m apart |
+| 1 | `together(Ken, Xue)` | 0.904 | over her shoulder: he says it lightly, she sits across the room |
 | 2 | `detail(Xue, hands)` | 0.991 | the hands gripping the skirt: an insert the LLM chose itself |
-| 3 | `sees(Xue → Ken)`, `together` | 0.860 | from behind her, Ken at the door with his thumb up |
-| 4 | `alone(Xue)`, `face(Xue)` | 0.374 | alone wants her small in an empty frame, face wants her close: one camera cannot do both |
+| 3 | `sees(Xue → Ken)` | 0.818 | over her shoulder again, the same side of the line: Ken at the door, thumb up |
+| 4 | `alone(Xue)` | 0.904 | she sits alone in the emptied room |
 
-Panels 1 and 4 show the storyboard asking one camera for two things that pull it opposite ways. The fix belongs to
-the storyboard (one thing per panel when they conflict, or a shot/reverse-shot pair), not to the camera.
-[`storyboards/farewell.json`](storyboards/farewell.json).
+Before the camera check, the LLM's storyboard for this story paired a face with something no single camera could
+also serve: `together(Ken, Xue)` with `face(Ken)` while they sat 3 m apart (0.306), and `alone(Xue)` with `face(Xue)`
+(0.374). Now the camera tries the first answer, finds both conflicts, and sends them back with the numbers; the second
+answer above is the one kept. The LLM also marked Xue as withdrawn in every panel (she holds back what she feels), so
+where she is the subject her back is the share directors give it. [`storyboards/farewell.json`](storyboards/farewell.json).
 </details>
 
 ---
@@ -141,6 +148,11 @@ shows; the composition scorer is unchanged.
 | `scale(who, against)` | the big thing in frame, the person a fraction of it | FrameSeeker's scale shot |
 | `detail(who, part)` — the injured foot, the hand holding the letter, the eyes | an **insert**: the part fills a good share of the frame; the shot is judged on the part, not the person | Katz: the insert; Mascelli: the cut-in |
 
+Each panel's intent also says who, at that instant, grieves, holds back what they feel or walks away. Directors show
+such a person from behind about twice as often as in everyday talk (29% of their shots against 15%, counted over
+every shot of 26 passages from three episodes), so for that subject the composition's face table gives backs that
+share; still a minority choice (`"back"` in `frameseeker.config.json`, 0 turns it off).
+
 The same scene, different intents, the search's best camera:
 
 ![classroom: no intent, a holds power, b vulnerable, together](docs/intent/classroom.jpg)
@@ -184,7 +196,7 @@ flowchart LR
 | Phase | Input → output | Who decides |
 |---|---|---|
 | 1. Extract | story text → **scene JSON**: the place, actors (pose, placement, look), structures, effects, the moment | an LLM, told to add nothing the text does not say; the solver checks its answer |
-| Storyboard | story + scene → N **panels**: each a beat (who is present, where, in which pose and expression) and an intent | an LLM; each beat must solve on the set and each intent is checked against its beat (unknown people, effects and parts dropped with a note) |
+| Storyboard | story + scene → N **panels**: each a beat (who is present, where, in which pose and expression) and an intent | an LLM; each beat must solve on the set and each intent is checked against its beat (unknown people, effects and parts dropped with a note), then tried with the camera (conflicts, things no camera can show, repeats go back to the LLM) |
 | 2. Staging | scene JSON → scene JSON with set pieces added | an LLM proposes; each addition is kept only if the strip's score rises (and drops when taken out) |
 | 3. Realize | scene + beat → **gray-box 3D world**: mannequins in poses, boxes, cylinders, glass, beams, the place's dressing | code: a relation solver, then set dressing by the kind of place |
 | 4. Camera search | world + preferences → the best *k* **shots** that differ | code: thousands of random cameras, hard constraints, composition terms, the intent's devices, local refinement |
@@ -490,14 +502,18 @@ from directions · `parts.ts` hands, feet and the parts an insert can be about �
 the focus (a pointing hand, a gaze) · `dress.ts` dressing by the kind of place (streets of buildings, a room's
 shell, a classroom's blackboard and desks).
 
-**`camera/`** — phases 4–5. Public: `shoot`, `rate`, `rateCamera`, `scorer`, `measure`, `maps`, `preview`, camera
-geometry. `camera.ts` the pinhole camera and projection · `search.ts` sampling and local refinement · `score.ts` hard
-constraints and score terms · `composition2d.ts` picture-plane composition (Liu et al. 2010) · `view.ts` what a camera
-shows, and preferences from outside · `maps.ts` the structure maps · `render.ts` the gray-box preview for people.
+**`camera/`** — phases 4–5. Public: `shoot`, `rate`, `rateCamera`, `scorer`, `measure`, `maps`, `preview`, the
+continuity gates, camera geometry. `camera.ts` the pinhole camera and projection · `search.ts` sampling and local
+refinement · `score.ts` hard constraints and score terms (the face table, and its lift for a withdrawn subject) ·
+`composition2d.ts` picture-plane composition (Liu et al. 2010) · `view.ts` what a camera shows, and preferences from
+outside · `continuity.ts` the 180° and 30° rules between shots · `maps.ts` the structure maps · `render.ts` the
+gray-box preview for people.
 
-**`intent/`** — what a shot is for. Public: `storyboard`, `checkIntent`, `preferences`, `applyIntent`, the
-vocabulary. `types.ts` the intents · `devices.ts` the ways films convey each, as preferences, with sources ·
-`storyboard.ts` the panels from a story (LLM: each a beat and an intent, checked against the scene).
+**`intent/`** — what a shot is for. Public: `storyboard`, `review`, `checkIntent`, `preferences`, `backLift`,
+`applyIntent`, the vocabulary. `types.ts` the intents · `devices.ts` the ways films convey each, as preferences, with
+sources · `storyboard.ts` the panels from a story (LLM: each a beat and an intent, checked against the scene) ·
+`review.ts` the panels tried with the camera (conflicts, things no camera can show, repeats) · `apply.ts` the intent
+as the scene's moment.
 
 **`generate/`** — phase 6. Public: the renderer contract (`Generator`, `GenerateInput`, `GenerateResult`).
 
@@ -544,13 +560,10 @@ deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
 
 Open, in rough order:
 
-- **The storyboard asks one camera for conflicting things** (a face and a lonely, empty frame), and sometimes writes
-  two panels that are the same instant. Both are the storyboard's to fix, not the camera's.
-- **Continuity between panels**: each panel is searched on its own; nothing yet keeps the camera on one side of the
-  line between two people across cuts (the 180° rule).
-- **Measured, not assumed**: the insert's preferred part size is a first choice, not yet measured from films; the
-  poses are written by hand, not captured.
-- **The intent of reference frames**: annotating it from the surrounding shots, so the evaluation can ask which
-  device directors choose for a given intent (for example how often a parting is shot from behind); then a held-out
-  run of the current scorer on unseen episodes.
+- **Measured, not assumed**: the devices for most intents (a low angle for power, a high one for vulnerability) come
+  from the textbooks and are not yet measured on films the way the back shots of grief and leaving were; the insert's
+  preferred part size is a first choice; the poses are written by hand, not captured.
+- **A held-out run of the current scorer** on unseen episodes.
+- **Across cuts**: intents that span several panels (each shot closer as tension rises) are not modelled; panels are
+  only kept on one side of the line and apart by 30°.
 - Light and leading lines are not modelled.

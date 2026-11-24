@@ -111,5 +111,7 @@ export function measure(w: World3D, cam: Cam, pts = samples(w)): View {
 /**
  * A preference over what a camera shows, from outside the camera module (e.g. a cinematographic device chosen for
  * an intent): a score in [0, 1] on the measured view, and its weight against the composition score (weight 1).
+ * A gate is a condition rather than a goal (continuity with the shot before): it multiplies the score instead of
+ * joining the mean, so meeting it adds nothing and breaking it costs almost everything; its weight is not used.
  */
-export interface Preference { name: string; weight: number; score(v: View): number }
+export interface Preference { name: string; weight: number; score(v: View): number; gate?: boolean }

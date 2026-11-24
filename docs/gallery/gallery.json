@@ -410,15 +410,17 @@
      "why": "Her face shows the pain that stops her from getting up."
     },
     "shot": {
-     "total": 0.861,
-     "height_m": 2.06,
-     "pitch_deg": -29,
+     "total": 0.859,
+     "height_m": 2.07,
+     "pitch_deg": -30,
      "focal_mm": 85,
      "aspect": "landscape"
     },
     "prefs": {
-     "face: a": 0.9646885878218604,
-     "vulnerable: a": 0.9152301432370874
+     "face: a": 0.9520048708066371,
+     "vulnerable: a": 0.926351351534583,
+     "180°: a–b as in panel 1": 1,
+     "30°: a new shot of a after panel 1": 1
     }
    },
    {
@@ -473,7 +475,8 @@
     },
     "prefs": {
      "b + a together": 1,
-     "face: b": 0.5661353032405284
+     "face: b": 0.5661353032405284,
+     "180°: a–b as in panel 1": 1
     }
    }
   ]
@@ -483,7 +486,7 @@
   "notes": [],
   "panels": [
    {
-    "beat": "阿健把最后一本书塞进书包，拉上拉链，语气轻松地说：「明天我就转学了。」",
+    "beat": "放学后的教室只剩下两个人。窗外的夕阳把课桌染成橘色。阿健把最后一本书塞进书包，拉上拉链，语气轻松得像在说明天的天气：「明天我就转学了。」",
     "intent": {
      "subject": "ken",
      "convey": [
@@ -493,28 +496,26 @@
         "ken",
         "xue"
        ]
-      },
-      {
-       "what": "face",
-       "who": "ken"
       }
      ],
-     "why": "Ken zips his bag and drops the news of his transfer as lightly as the weather, while Xue sits silent."
+     "why": "He speaks lightly of leaving while she sits silent across the room.",
+     "withdrawn": [
+      "xue"
+     ]
     },
     "shot": {
-     "total": 0.306,
-     "height_m": 1.19,
-     "pitch_deg": 3,
+     "total": 0.904,
+     "height_m": 1.23,
+     "pitch_deg": -6,
      "focal_mm": 50,
      "aspect": "landscape"
     },
     "prefs": {
-     "ken + xue together": 1,
-     "face: ken": 0
+     "ken + xue together": 1
     }
    },
    {
-    "beat": "小雪低着头，一句话也没说，手指紧紧攥着裙角。",
+    "beat": "小雪坐在自己的座位上，低着头，手指紧紧攥着裙角，一句话也没说。",
     "intent": {
      "subject": "xue",
      "convey": [
@@ -524,21 +525,24 @@
        "part": "hands"
       }
      ],
-     "why": "Her clenched hands on the skirt hem are the only answer she gives."
+     "why": "Her clenched hands say what she will not say out loud.",
+     "withdrawn": [
+      "xue"
+     ]
     },
     "shot": {
      "total": 0.991,
-     "height_m": 0.47,
-     "pitch_deg": 23,
+     "height_m": 1.29,
+     "pitch_deg": -36,
      "focal_mm": 50,
-     "aspect": "landscape"
+     "aspect": "portrait"
     },
     "prefs": {
      "xue's hands": 1
     }
    },
    {
-    "beat": "阿健走到教室门口，停了一下，没有回头，背对着她举起右手竖了个大拇指：「别哭啊，班长。」",
+    "beat": "阿健走到教室门口，停了一下。他没有回头，只是背对着她举起右手，竖了个大拇指：「别哭啊，班长。」",
     "intent": {
      "subject": "ken",
      "convey": [
@@ -546,55 +550,49 @@
        "what": "sees",
        "who": "xue",
        "target": "ken"
-      },
-      {
-       "what": "together",
-       "who": [
-        "ken",
-        "xue"
-       ]
       }
      ],
-     "why": "Without turning round he raises a thumbs-up over his shoulder and tells her not to cry."
+     "why": "His back and raised thumb carry the whole goodbye.",
+     "withdrawn": [
+      "xue"
+     ]
     },
     "shot": {
-     "total": 0.86,
-     "height_m": 2.28,
-     "pitch_deg": -11,
-     "focal_mm": 35,
-     "aspect": "portrait"
+     "total": 0.818,
+     "height_m": 1.09,
+     "pitch_deg": 4,
+     "focal_mm": 50,
+     "aspect": "landscape"
     },
     "prefs": {
      "xue sees ken": 1,
-     "ken + xue together": 1
+     "180°: ken–xue as in panel 1": 1
     }
    },
    {
-    "beat": "门开了又关上，阿健走了出去；教室里只剩下小雪一个人，夕阳把课桌染成橘色。",
+    "beat": "然后拉开门走了出去。教室里只剩下小雪一个人，夕阳把空课桌染成橘色。",
     "intent": {
      "subject": "xue",
      "convey": [
       {
        "what": "alone",
        "who": "xue"
-      },
-      {
-       "what": "face",
-       "who": "xue"
       }
      ],
-     "why": "The door has closed behind him and she is left alone in the orange classroom."
+     "why": "He is gone and she is left sitting in the emptied room.",
+     "withdrawn": [
+      "xue"
+     ]
     },
     "shot": {
-     "total": 0.374,
-     "height_m": 0.35,
-     "pitch_deg": 36,
+     "total": 0.904,
+     "height_m": 1.12,
+     "pitch_deg": -6,
      "focal_mm": 50,
-     "aspect": "landscape"
+     "aspect": "portrait"
     },
     "prefs": {
-     "alone: xue": 0.3766900531357458,
-     "face: xue": 0.18525729089961274
+     "alone: xue": 1
     }
    }
   ]

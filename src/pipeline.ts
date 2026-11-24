@@ -6,10 +6,11 @@
 // on its own. One camera need not carry everything the moment has to say: as a director cuts between a low angle on
 // one person and a high angle on the other, each panel carries one or two things.
 import { atBeat, extractScene, realize, stageScene, type Beat, type Built, type Chat, type Rating, type Scene, type World3D } from './scene/index.ts';
-import { maps, rate, shoot, SIZE, type SearchOpts, type Shot, type ShotMaps } from './camera/index.ts';
+import { keepSide, maps, newShot, ON_LINE, rate, shoot, sideOf, SIZE, type Preference, type SearchOpts, type Shot, type ShotMaps } from './camera/index.ts';
 import { GeneratorUnavailable, type Generator } from './generate/index.ts';
-import { storyboard, checkIntent, preferences, applyIntent, type IntentWeights, type Panel, type ShotIntent } from './intent/index.ts';
+import { storyboard, checkIntent, preferences, backLift, applyIntent, type IntentWeights, type Panel, type ShotIntent } from './intent/index.ts';
 import type { Image } from './shared/image.ts';
+import type { V3 } from './shared/vec.ts';
 
 /** meta: what the renderer reported (its prompt, its checks) */
 export interface ShotResult { shot: Shot; maps: ShotMaps; image: Image | null; meta?: Record<string, unknown>; note?: string }
@@ -54,10 +55,17 @@ export async function runText(text: string, opts: RunOpts & { chat: Chat; focus?
   return { built, panels: r.panels, notes: [...notes, ...r.notes] };
 }
 
-/** From a storyboard (phases 3–6, no LLM): each panel's beat is solved on the set, its intent checked against it. */
+/**
+ * From a storyboard (phases 3–6, no LLM): each panel's beat is solved on the set, its intent checked against it. The
+ * panels are shot in order and cut together: while the same two people face each other, the camera keeps to the side
+ * of the line between them it took first (the 180° rule); two panels in a row about the same person differ by 30° or
+ * a shot size (the 30° rule). An insert neither follows nor sets either.
+ */
 export async function runStoryboard(board: Storyboard, opts: RunOpts = {}): Promise<RunResult> {
   const notes: string[] = [], panels: PanelResult[] = [];
   const k = opts.k ?? (board.panels.length > 1 ? 1 : 3);
+  let line: { pair: [string, string]; side: number; panel: number } | undefined;
+  let prev: { who: string; at: V3; cam: V3; scale: number } | undefined;
   for (const [i, p] of board.panels.entries()) {
     let panel = p;
     if (p.intent) {
@@ -65,9 +73,42 @@ export async function runStoryboard(board: Storyboard, opts: RunOpts = {}): Prom
       notes.push(...c.notes.map((x) => `panel ${i + 1}: ${x}`));
       panel = { ...p, intent: c.intent };
     }
-    panels.push(await runPanel(board.scene, panel, { ...opts, k }));
+    const s = panelScene(board.scene, panel), world = realize(s, panel.beat ? board.scene : undefined);
+    const insert = !!s.moment.part;
+    const at = (id: string) => world.solved.actors.get(id)?.pos;
+    const keep: Preference[] = [];
+    const name = line && `180°: ${line.pair.join('–')} as in panel ${line.panel}`;
+    if (line && !insert && at(line.pair[0]) && at(line.pair[1])) keep.push(keepSide(at(line.pair[0])!, at(line.pair[1])!, line.side, name!));
+    const cut = prev && !insert && prev.who === s.moment.focus && at(prev.who) ? `30°: a new shot of ${prev.who} after panel ${i}` : undefined;
+    if (cut) keep.push(newShot(prev!.who, world.solved.actors.get(prev!.who)!.head, prev!, cut));
+    const r = await runPanel(s, world, panel, { ...opts, k }, keep);
+    panels.push(r);
+    const shot = r.shots[0]?.shot;
+    if (name && shot?.prefs?.[name] !== undefined && shot.prefs[name] < 0.5) notes.push(`panel ${i + 1}: crosses the line between ${line!.pair.join(' and ')} (180° rule): no good camera on panel ${line!.panel}'s side`);
+    if (cut && shot?.prefs?.[cut] !== undefined && shot.prefs[cut] < 0.5) notes.push(`panel ${i + 1}: a jump cut from panel ${i} (the 30° rule): no good camera far enough from the last`);
+    prev = !insert && shot ? { who: s.moment.focus, at: world.solved.actors.get(s.moment.focus)!.head, cam: shot.cam.pos, scale: shot.info.subject_size ?? 0 } : undefined;
+    if (insert || !shot) continue;
+    const pair = axis(world, s.moment.focus);
+    if (!pair) continue;
+    const d = sideOf(shot.cam.pos, at(pair[0])!, at(pair[1])!);
+    if (Math.abs(d) >= ON_LINE) line = { pair, side: Math.sign(d), panel: i + 1 };
+    else if (line && line.pair.join() !== pair.join()) line = undefined;
   }
   return { built: null, panels, notes };
+}
+
+/**
+ * The line of action at an instant: the focus and the person they look at, face or approach (else the nearest other
+ * person present), in a fixed order so that "which side" means the same from panel to panel.
+ */
+function axis(w: World3D, focus: string): [string, string] | null {
+  const me = w.solved.actors.get(focus), a = w.scene.actors.find((x) => x.id === focus);
+  if (!me || !a) return null;
+  const others = [...w.solved.actors.values()].filter((o) => o.id !== focus);
+  if (!others.length) return null;
+  const named = [a.looks_at, a.facing, a.approaches].find((id) => typeof id === 'string' && w.solved.actors.has(id)) as string | undefined;
+  const other = named ?? others.reduce((m, o) => (Math.hypot(o.pos[0] - me.pos[0], o.pos[2] - me.pos[2]) < Math.hypot(m.pos[0] - me.pos[0], m.pos[2] - me.pos[2]) ? o : m)).id;
+  return [focus, other].sort() as [string, string];
 }
 
 /** From a scene JSON (phases 3–6, no LLM): one panel, the scene's own instant. */
@@ -84,17 +125,16 @@ export function panelScene(scene: Scene, p: Panel): Scene {
 /** The strip's rating: each panel's best shot with its intent, averaged (a panel that no longer solves counts 0). */
 function rateStrip(scene: Scene, board: Panel[], weights?: Partial<IntentWeights>): Rating {
   const rs = board.map((p) => {
-    try { return rate(realize(panelScene(scene, p), scene), { seed: 1, k: 1, ...(p.intent ? { prefer: preferences(p.intent, weights) } : {}) }); } catch { return { total: 0, terms: {} }; }
+    try { return rate(realize(panelScene(scene, p), scene), { seed: 1, k: 1, ...(p.intent ? { prefer: preferences(p.intent, weights), backLift: backLift(p.intent, weights) } : {}) }); } catch { return { total: 0, terms: {} }; }
   });
   const terms: Record<string, number> = {};
   for (const t of new Set(rs.flatMap((r) => Object.keys(r.terms)))) terms[t] = rs.reduce((a, r) => a + (r.terms[t] ?? 0), 0) / rs.length;
   return { total: rs.reduce((a, r) => a + r.total, 0) / rs.length, terms };
 }
 
-async function runPanel(scene: Scene, p: Panel, opts: RunOpts): Promise<PanelResult> {
-  const s = panelScene(scene, p);
-  const world = realize(s, p.beat ? scene : undefined);
-  const { shots } = shoot(world, { k: opts.k ?? 3, ...opts.search, ...(p.intent ? { prefer: preferences(p.intent, opts.intentWeights) } : {}) });
+async function runPanel(s: Scene, world: World3D, p: Panel, opts: RunOpts, extra: Preference[] = []): Promise<PanelResult> {
+  const prefer = [...(p.intent ? preferences(p.intent, opts.intentWeights) : []), ...extra];
+  const { shots } = shoot(world, { k: opts.k ?? 3, ...opts.search, ...(prefer.length ? { prefer } : {}), ...(p.intent ? { backLift: backLift(p.intent, opts.intentWeights) } : {}) });
   const results: ShotResult[] = [];
   for (const shot of shots) {
     const m = maps(world, shot.cam);

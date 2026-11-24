@@ -6,7 +6,7 @@
 // weakness), the close-up for reaction, point-of-view and over-the-shoulder shots; Arijon, Grammar of the Film
 // Language (1976): the two-shot, the external reverse; Jhala & Young 2005 (low angle for dominance, close shot for
 // an angry speaker); Cutting 2015 for shot scales (MS ≈ 2.1, LS ≈ 0.9 of the person's height over the frame's).
-import { INSERT_SIZE, type ActorView, type Preference, type ThingView, type View } from '../camera/index.ts';
+import { BACK_LIFT, INSERT_SIZE, type ActorView, type Preference, type ThingView, type View } from '../camera/index.ts';
 import type { Convey, ConveyKind, ShotIntent } from './types.ts';
 
 /** linear from 0 at a to 1 at b (either direction) */
@@ -95,11 +95,22 @@ export interface IntentWeights {
   kinds: Record<ConveyKind, number>;
   /** the first (most important) thing to convey is weighed this many times more */
   first: number;
+  /**
+   * how much of the measured lift of backs (BACK_LIFT) a withdrawn subject gets: 1 the measured share, 0 none (the
+   * face table as for anyone), in between a part of it (the lift is raised to this power)
+   */
+  back: number;
 }
 export const DEFAULT_WEIGHTS: IntentWeights = {
   kinds: { face: 1, sees: 1, power: 1, vulnerable: 1, alone: 1, together: 1, scale: 1, detail: 1 },
   first: 1.5,
+  back: 1,
 };
+
+/** How many times as often the shot's subject may be seen from behind (1: the face table as it is). */
+export function backLift(intent: ShotIntent, weights: Partial<IntentWeights> = {}): number {
+  return intent.withdrawn?.includes(intent.subject) ? BACK_LIFT ** (weights.back ?? DEFAULT_WEIGHTS.back) : 1;
+}
 
 /** The intent as preferences for the camera search: one per thing to convey, met by its best device. */
 export function preferences(intent: ShotIntent, weights: Partial<IntentWeights> = {}): Preference[] {

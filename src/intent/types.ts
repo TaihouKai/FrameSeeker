@@ -30,4 +30,9 @@ export interface ShotIntent {
   convey: Convey[];
   /** one sentence: what the shot is for (for people reading the plan) */
   why?: string;
+  /**
+   * the people who, at this instant, grieve, hold back what they feel, or walk away: films show such a person from
+   * behind about twice as often as in everyday talk (still a minority; see BACK_LIFT in the camera's scorer)
+   */
+  withdrawn?: string[];
 }

@@ -104,8 +104,14 @@ intents, the search's best camera:
   at the origin, and the set dressing is laid out once. This came from testing: asked for one shot, the LLM gave it
   three things to convey that no single camera can show (a low angle on the one who scolds and a high angle on the one
   scolded; two faces turned away from each other), and the search dropped the hardest one, the face, every time. As
-  panels, each carries one or two. Still open: intents that live *across* cuts (*intensify*: each shot closer;
-  keeping the 180° line), which would score the strip as a whole rather than each panel on its own.
+  panels, each carries one or two. The panels are cut together with the **180° rule** (Arijon; Katz): the line of
+  action is the panel's subject and the one they look at, face or approach (else the nearest person); once a panel's
+  camera stands on one side of it, later panels with the same two people keep to that side (a gate on the search:
+  a camera half a metre across scores almost nothing; one on the line may go either way, as films cross it; an insert
+  neither follows nor sets the line). Two panels in a row about the same person must differ by at least 30° around
+  them or by a shot size (×1.5 in their height on the frame), the **30° rule** (Katz), or the cut reads as a jump: the
+  first strips drew the same picture twice when two panels had the same subject at the same instant. Still open: intents that live *across* cuts (*intensify*: each shot closer),
+  which would score the strip as a whole rather than each panel on its own.
 - **Feel and light.** Emotional tone (tension, warmth) is an intent; light is mostly how it is served. Two kinds:
   - *Mood light* (low key or high key, warm or cold, contrast) is set relative to the camera and the subject (the
     classic three-point setup: key about 45° to one side of the lens, back light behind the subject facing it). So it
@@ -130,13 +136,26 @@ intents, the search's best camera:
   labelled blind), the person is shown from behind in 29% of the shots of the first kind against 15% of the second
   (permutation over passages p 0.005), and is the back-turned subject of the shot in 13% against 5%. So the intent
   does move the face's weight, but at the scale of a passage and as a minority choice: even then most shots show the
-  face. A per-shot rule asked of the LLM is the wrong grain; the passage's intent is the right one, and the scorer
-  stays unchanged until that is fitted and tested on films it was not fitted on.
+  face. A per-shot rule asked of the LLM is the wrong grain; the passage's intent is the right one.
+  **Used as a weight (the project owner's proposal: give backs the share directors give them, and set it to 0 if it
+  does not work):** the storyboard marks, per panel, who grieves, holds back what they feel or walks away
+  (`intent.withdrawn`, a fact of the story). When that is the panel's subject, the face table's back bin is given
+  the measured lift, 29% / 15% = ×1.93 in share (`BACK_LIFT`), the other bins' shares shrinking to keep the total:
+  its score goes from 0.42 to 0.63, the front stays 1. `"back"` in `frameseeker.config.json` scales it (1 measured,
+  0 off). On the seven example scenes, the share of backs among the search's ten best cameras goes from 15% to 33%,
+  close to the directors' 15% and 29%, and the best camera still shows the face in five of seven. Evaluation A does
+  not use it (its frames carry no passage labels). Not yet tested on films it was not measured on.
 - **Extraction** (`storyboard` in `src/intent/`): the LLM writes each panel's beat and intent, checked against the
   scene's ids and solved; at most two things per panel. First runs on six short stories: a farewell, a scolding, a
   station, a giant statue, a rooftop chase, a duel. Panels with one or two compatible things reach 0.8–0.98; the
-  pairing the LLM still makes most often, a face together with a two-shot of people metres apart, cannot be met by one
-  camera and scores low.
+  pairing the LLM made most often, a face together with a two-shot of people metres apart, cannot be met by one
+  camera and scored low. So the storyboard is now **checked with the camera** (`review` in `src/intent/`): each
+  panel is searched with both things and with each alone; a thing met alone (its device ≥ 0.5) but not with the other
+  is a conflict, one not met even alone cannot be shown at that instant (a face turned to a wall), and two panels in
+  a row at the same instant with the same intent are a repeat. The problems go back to the LLM with the numbers
+  (up to three answers); a conflict left in the last answer loses its less important thing, the rest become notes.
+  On the earlier farewell strip it finds exactly the two weak panels (a face with a two-shot 3 m apart; a face with
+  "alone") and passes every panel of the sprain strip.
 
 ## Pointing: who the eye goes to
 

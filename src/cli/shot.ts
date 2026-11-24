@@ -6,7 +6,7 @@ import { basename, join } from 'node:path';
 import { realize, type Scene } from '../scene/index.ts';
 import { maps, rateCamera, shoot, type Cam, type Shot } from '../camera/index.ts';
 import { toPng } from '../shared/image.ts';
-import { preferences, applyIntent, type ShotIntent } from '../intent/index.ts';
+import { preferences, backLift, applyIntent, type ShotIntent } from '../intent/index.ts';
 import { loadConfig } from './config.ts';
 
 const args = process.argv.slice(2);
@@ -29,7 +29,7 @@ if (camFile) {
   const ev = rateCamera(w, cam);
   picked = [{ cam, total: ev.total, terms: ev.terms, info: ev.info, ok: ev.ok, reject: ev.reject }];
 } else {
-  const r = shoot(w, { n: n ? Number(n) : undefined, seed: seed ? Number(seed) : undefined, k: k ? Number(k) : undefined, ...(intent ? { prefer: preferences(intent, loadConfig().intent) } : {}) });
+  const r = shoot(w, { n: n ? Number(n) : undefined, seed: seed ? Number(seed) : undefined, k: k ? Number(k) : undefined, ...(intent ? { prefer: preferences(intent, loadConfig().intent), backLift: backLift(intent, loadConfig().intent) } : {}) });
   picked = r.shots.map((s) => ({ ...s, ok: true }));
   stats = { sampled: r.sampled, accepted: r.accepted, rejects: r.rejects };
 }
