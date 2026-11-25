@@ -29,7 +29,8 @@ describe('composition search (calibration)', () => {
   it('CS1 reference anime frame rebuilt as a gray box: a found shot is the reference one — low, looking up, the bolt across the frame', () => {
     const { ctx } = load('reference-truss');
     const r = search(ctx, { seed: 1, k: 5 });
-    const like = r.candidates.filter((c) => c.ev.info.camera_height < 3 && c.ev.info.pitch > 12 && c.ev.info.pitch < 45 && c.ev.info.line_angle > 20 && c.ev.info.line_angle < 60);
+    // low = from the street, below the 7 m gantry the figure stands on (the reference: 2 m, looking up 22°)
+    const like = r.candidates.filter((c) => c.ev.info.camera_height < 7 && c.ev.info.pitch > 12 && c.ev.info.pitch < 45 && c.ev.info.line_angle > 20 && c.ev.info.line_angle < 60);
     expect(like.length).toBeGreaterThan(0);
   });
 

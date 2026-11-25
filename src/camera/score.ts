@@ -45,6 +45,24 @@ export function heightScore(h: number): number {
   for (let i = 1; i < B.length; i++) if (h <= B[i][0]) return B[i - 1][1] + (B[i][1] - B[i - 1][1]) * (h - B[i - 1][0]) / (B[i][0] - B[i - 1][0]);
   return B[B.length - 1][1];
 }
+/**
+ * Lead room (look room, Mascelli): an off-centre head with the frame's space ahead of where it faces, not behind it.
+ * Measured like the tables above (`experiments/lead/count.mts`, 144 reference shots against the search's 152 274
+ * valid random cameras on the same scenes). Random cameras put the head on either side equally (49–51%). Directors
+ * keep the space ahead in 28 of 34 off-centre shots where the face is near profile (|sin| of the face angle ≥ 0.8)
+ * and in 54 of 83 where it is turned toward or away from the camera: a wrong side is 6.5/28.5 = 0.23 and
+ * 29.5/54.5 = 0.54 as likely as the right one (half a count added). Square root, as the term is correlated with the
+ * face angle; how far off centre the head is belongs to the composition term, so the right side and the centre both
+ * score 1 and the wrong side reaches its score at a tenth of the half-frame. (Before: a hand formula,
+ * 0.5 + side × offset, that gave 0 to 9 of the 160 reference shots.)
+ */
+export const LEAD_WRONG: [across: number, score: number][] = [[0.7, Math.sqrt(29.5 / 54.5)], [0.9, Math.sqrt(6.5 / 28.5)]];
+/** `lead`: facing across the frame (sign) × the head's offset toward the other side (1 = at the edge, all ahead). */
+export function leadScore(lead: number, across: number): number {
+  const [[a0, s0], [a1, s1]] = LEAD_WRONG;
+  const wrong = across <= a0 ? s0 : across >= a1 ? s1 : s0 + (s1 - s0) * (across - a0) / (a1 - a0);
+  return 1 - (1 - wrong) * Math.min(1, Math.max(0, -lead) / 0.1);
+}
 export function tiltScore(pitchDeg: number): number {
   const [[a, sa], [b, sb]] = TILT_BINS;
   return pitchDeg <= a ? sa : pitchDeg >= b ? sb : sa + (sb - sa) * (pitchDeg - a) / (b - a);
@@ -335,8 +353,11 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));
   if (ahead) {
     const dx = ahead.u - head.u, dl = Math.hypot(dx, ahead.v - head.v);
-    terms.lead_room = dl < 0.01 ? 0.6 : Math.min(1, Math.max(0, 0.5 + (dx / dl) * (0.5 - head.u) * 2));
-  } else terms.lead_room = 0.6;
+    if (dl >= 0.01) {
+      info.lead = (dx / dl) * (0.5 - head.u) * 2; info.lead_across = Math.sin(info.face_angle * Math.PI / 180);
+      terms.lead_room = leadScore(info.lead, info.lead_across);
+    } else terms.lead_room = 1;
+  } else terms.lead_room = 1;
   // joints of the subject near the frame's edge (counted for the measurement below)
   let cuts = 0;
   {

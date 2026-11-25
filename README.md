@@ -327,7 +327,10 @@ terms in [0, 1] combined by a weighted geometric mean, each from a published rul
   the ground, where random cameras would put 23; under 0.6 m 3 against 17, over 4 m 2 against 49. Films keep the
   camera near a standing person's chest-to-eye height and change the angle from there, so a dialogue no longer gets
   a camera on the floor;
-- **framing, lead room, foreshortening** of the action line, **occlusion** of the subject by nearer people or glass
+- **lead room**, the same way: random cameras put an off-centre head on either side equally; directors keep the
+  space ahead of the face in 28 of 34 such shots when the face is near profile and 54 of 83 otherwise, so the wrong
+  side scores the square root of 0.23 and 0.54 (it used to score 0 at the frame's edge);
+- **framing, foreshortening** of the action line, **occlusion** of the subject by nearer people or glass
   (Bares et al. 2000), **mergers**.
 
 Rules the data did not support are left out. "Never crop the subject at a joint" (Katz) was a term until the
