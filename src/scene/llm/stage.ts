@@ -44,6 +44,7 @@ export const RULE_HINTS: Record<string, string> = {
   framing: 'nothing near the frame edges: a set piece close beside the action (a pillar, a car, a gantry overhead) that a camera can shoot past',
   subject_size: 'the focus is tiny or huge in every good shot: things that must be in frame are too far apart, or too close',
   face: 'the focus faces away from where good cameras stand',
+  height: 'good cameras stand far below or above where films keep the camera (about 1–1.4 m): the set leaves no room at that height',
   lead_room: 'no space in front of where the focus faces',
   overlap: 'the people overlap on the screen: separate them',
   aspect: 'the format does not fit the shot',

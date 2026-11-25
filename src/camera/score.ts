@@ -7,15 +7,15 @@ import { KP } from '../shared/skeleton.ts';
 import { partPoints, type BodyPart, type Intent, type Solved, type SolvedActor } from '../scene/index.ts';
 import { composition, type Line2D, type Region2D } from './composition2d.ts';
 
-export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'lead_room', 'overlap', 'aspect', 'merger'] as const;
+export const TERMS = ['composition', 'foreshortening', 'scale', 'sky', 'framing', 'subject_size', 'face', 'tilt', 'height', 'lead_room', 'overlap', 'aspect', 'merger'] as const;
 export type Term = typeof TERMS[number];
 
 /** Weights by intent (starting values). */
 export const WEIGHTS: Record<Intent, Record<Term, number>> = {
-  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, tilt: 1, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
-  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1.5, overlap: 1.5, aspect: 0.5, merger: 1 },
-  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, tilt: 2, lead_room: 1, overlap: 0.5, aspect: 0.5, merger: 1.5 },
-  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  scale:   { composition: 3.5, foreshortening: 3, scale: 4, sky: 2, framing: 1.5, subject_size: 2, face: 0.5, tilt: 1, height: 0, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
+  action:  { composition: 4.5, foreshortening: 3, scale: 1, sky: 0.5, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, height: 1.5, lead_room: 1.5, overlap: 1.5, aspect: 0.5, merger: 1 },
+  emotion: { composition: 2.5, foreshortening: 1, scale: 0, sky: 0, framing: 0.5, subject_size: 3, face: 3, tilt: 2, height: 2, lead_room: 1, overlap: 0.5, aspect: 0.5, merger: 1.5 },
+  reveal:  { composition: 2.5, foreshortening: 2, scale: 2, sky: 1, framing: 1, subject_size: 2, face: 1.5, tilt: 1.5, height: 1.5, lead_room: 1, overlap: 1, aspect: 0.5, merger: 1 },
 };
 
 /**
@@ -28,6 +28,23 @@ export const WEIGHTS: Record<Intent, Record<Term, number>> = {
  * between the bin centres (-67.5° and -37.5°), as FACE_BINS.
  */
 export const TILT_BINS: [pitch: number, score: number][] = [[-67.5, 0.2], [-37.5, 1]];
+/**
+ * Camera height above the ground, the same way: the 149 rebuilt reference shots that are not scale shots (camera height
+ * not clamped) over the search sampler's valid random cameras on the same scenes (196 539), half a count added per bin
+ * (experiments/height/count.mts, local). Films keep the camera at 1–1.4 m (84 shots against 22.8 expected) and a little
+ * above (1.4–1.8 m: 31 against 20.3); rarely on the ground (0–0.6 m: 3 against 16.6) and almost never above 4 m (2
+ * against 48.9). The square root of the ratio to the best bin, as the height is correlated with the tilt; 1.8–4 m
+ * merged (13 against 18.1). Flat over 1–1.4 m (one bin: films spread evenly across it, so the other terms choose
+ * the height there), else piecewise linear between bin centres. The people of the reference shots are taken to be 1.6 m. Not used for scale shots, which
+ * have their own height rule (a low camera under something big), nor for inserts.
+ */
+export const HEIGHT_BINS: [metres: number, score: number][] = [[0.3, 0.24], [0.8, 0.45], [1, 1], [1.4, 1], [1.6, 0.65], [2.9, 0.45], [6, 0.12]];
+export function heightScore(h: number): number {
+  const B = HEIGHT_BINS;
+  if (h <= B[0][0]) return B[0][1];
+  for (let i = 1; i < B.length; i++) if (h <= B[i][0]) return B[i - 1][1] + (B[i][1] - B[i - 1][1]) * (h - B[i - 1][0]) / (B[i][0] - B[i - 1][0]);
+  return B[B.length - 1][1];
+}
 export function tiltScore(pitchDeg: number): number {
   const [[a, sa], [b, sb]] = TILT_BINS;
   return pitchDeg <= a ? sa : pitchDeg >= b ? sb : sa + (sb - sa) * (pitchDeg - a) / (b - a);
@@ -313,6 +330,7 @@ export function evaluate(ctx: Ctx, cam: Cam): Evaluation {
   info.face_angle = Math.acos(Math.max(-1, Math.min(1, toCam[0] * face[0] + toCam[2] * face[2]))) * 180 / Math.PI;
   terms.face = faceScore(info.face_angle, ctx.faceBins);
   terms.tilt = tiltScore(info.pitch);
+  if (ctx.intent !== 'scale') terms.height = heightScore(info.camera_height);
   // look room / lead room: space in front of where they face (Mascelli: composition)
   const ahead = project(f, add(ctx.focus.head, ctx.focus.fwd));
   if (ahead) {

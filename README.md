@@ -323,6 +323,10 @@ terms in [0, 1] combined by a weighted geometric mean, each from a published rul
   other terms);
 - **camera tilt**, the same way: near top-down shots (over 45° down) are 2 of 88 reference shots against 13% of
   random cameras; other tilts are as common as chance, or too rare among random cameras to judge;
+- **camera height**, the same way: 84 of 149 reference shots (scale shots left out) have the camera 1–1.4 m above
+  the ground, where random cameras would put 23; under 0.6 m 3 against 17, over 4 m 2 against 49. Films keep the
+  camera near a standing person's chest-to-eye height and change the angle from there, so a dialogue no longer gets
+  a camera on the floor;
 - **framing, lead room, foreshortening** of the action line, **occlusion** of the subject by nearer people or glass
   (Bares et al. 2000), **mergers**.
 
