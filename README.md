@@ -560,9 +560,11 @@ deterministic from phase 3 on. The renderer for phase 6 is being chosen; an SDXL
 
 Open, in rough order:
 
-- **Measured, not assumed**: the devices for most intents (a low angle for power, a high one for vulnerability) come
-  from the textbooks and are not yet measured on films the way the back shots of grief and leaving were; the insert's
-  preferred part size is a first choice; the poses are written by hand, not captured.
+- **Measured, not assumed**: the low angle for power and the high angle for vulnerability were measured on 9 episodes
+  the way the back shots of grief and leaving were, and not found: within the same person, the camera's height barely
+  changes when they dominate or are dominated; it follows their height and stance
+  ([docs/INTENT.md](docs/INTENT.md#the-vocabulary-first-version)). The insert's preferred part size is a first choice;
+  the poses are written by hand, not captured.
 - **A held-out run of the current scorer** on unseen episodes.
 - **Across cuts**: intents that span several panels (each shot closer as tension rises) are not modelled; panels are
   only kept on one side of the line and apart by 30°.

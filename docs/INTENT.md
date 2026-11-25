@@ -63,6 +63,16 @@ preferences. Lighting or vanishing lines would be new devices, and new measureme
 | `scale(who, against)` — small against something big | the big thing in frame, many times the person's size | (FrameSeeker's scale shot) |
 | `detail(who, part)` — a part of them: the injured foot, the hand holding the letter, the eyes | an insert: the part fills a good share of the frame (its extent 0.25–0.65 of the frame's height, a first choice); the shot is judged on the part, not the person | Katz: the insert; Mascelli: the cut-in |
 
+The angle devices were measured on films (2026-11-25): 9 TV anime episodes, 18 passages where one person scolds,
+orders, threatens or interrogates another, against 26 everyday passages with the same people, chosen from
+whole-episode transcripts and frozen before any frame was seen; every shot labelled blind twice for the camera's height
+against the person's eyes (the labellers were first checked against the measured camera height of the evaluation-A
+frames: no below/above swaps in 59). Compared within each person, the dominant one is shot from below in 31% of shots
+against 28% everyday (p 0.40), the subordinate one from above in 18% against 26% (the wrong way). So in these
+episodes the camera's height does not follow who holds power; it follows how tall the people are and how they stand
+(a small girl who bosses a tall boy is never shot from below). `power` and `vulnerable` keep their textbook devices for
+a story that asks for them, but they are not what directors of this material do by default.
+
 Each shot has a `subject` (where the eye goes first) and at most two things to convey, most important first (more pull one camera different ways; a strip gives each its own panel).
 
 An insert changes what the scorer judges, not only what it prefers: the moment gets a `part`, and the hard rule that
