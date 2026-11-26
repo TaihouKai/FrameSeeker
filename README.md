@@ -279,13 +279,15 @@ leave-one-episode-out cross-validation (each table estimated without the episode
 top 5% against 72 / 119 for the version before, no episode worse. Five variants were tried and the best kept, so
 that gain is somewhat optimistic; **the current version has no held-out measurement of its own yet.**
 
-**The eight episodes the current scorer was tuned on — in-sample, for reference.**
+**The eleven episodes the current scorer was tuned on — in-sample, for reference.** Since the table above, three
+more episodes joined the development set, and the camera-height and lead-room terms were measured on all eleven
+(see [the scorer](#the-camera-scorer)); like the face table, they still need an unseen episode to be tested on.
 
-| On all 118 rebuilt shots (119 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
+| On all 163 rebuilt shots (164 annotated, 1 rebuild failure) | FrameSeeker | Liu et al. | Thirds |
 |---|---|---|---|
-| Director's camera in the top 5% | 75 (64%) | 12 (10%) | 7 (6%) |
-| Median percentile | 98% | 55% | 66% |
-| Director's camera among the search's top 3 | 38 | 9 | 8 |
+| Director's camera in the top 5% | 107 (66%) | 24 (15%) | 15 (9%) |
+| Median percentile | 98% | 61% | 70% |
+| Director's camera among the search's top 3 | 53 | 12 | 9 |
 
 **What this says, and what it does not.**
 - Neither picture-plane measure, the published one or its simplest rule, separates the director's camera from the
